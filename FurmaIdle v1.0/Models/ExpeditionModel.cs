@@ -2,27 +2,17 @@
 
 namespace FurmaIdle.Models
 {
-    public sealed class ContractRun
-    {
-        public string ContractId { get; init; }
-        public double ProgressSec { get; set; } = 0;
-    }
-
     public class ExpeditionModel
     {
-        public string StageId { get; set; }
-        public string ExpansionId { get; set; }
-        public List<string> PartyId { get; set; } = new();
-        public ExpeditionEnum.ExpeditionStatus ExpeditionStatus { get; set; } = ExpeditionEnum.ExpeditionStatus.Idle;
+        public string StageId { get; set; } = "";                
+        public List<string> PartyIds { get; set; } = new();
+        public UnlockHelper.ExpeditionState? ExpeditionState { get; set; } = UnlockHelper.ExpeditionState.Idle;
+        public DateTimeOffset? StartedAt { get; set; }
+        public DateTimeOffset? FinishedAt { get; set; }
 
-        public Dictionary<string, ContractModel> Contracts { get; set; } = new();
-        public List<ContractRun> ActiveContracts { get; set; } = new();
-        public Dictionary<int, string> LockedContractByLevel { get; set; } = new();
-        public List<ActiveSpecialtyModel> ActiveSpecialties { get; set; } = new();
-        public Dictionary<string, double> RunGainsByRes { get; set; } = new();
-        public Dictionary<string, double> RunKnowGains { get; set; } = new();
+        public double CurrentCoinPerSec { get; set; } = 0.0;
 
-
-        public DateTimeOffset? Start { get; set; }
+        // Modifiers
+        public List<ModifierModel> Modifiers { get; set; }
     }
 }

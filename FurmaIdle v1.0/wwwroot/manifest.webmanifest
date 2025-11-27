@@ -1,21 +1,16 @@
 {
-  "name": "Meu Site (Blazor PWA)",
-  "short_name": "MeuSite",
-  "start_url": "/",
-  "scope": "/",
+  "name": "FurmaIdle",
+  "short_name": "FurmaIdle",
+  "id": "./",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#03173d",
-  "description": "Aplicativo Web Progresso (PWA) feito em Blazor WebAssembly.",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "icon-512.png",
-      "type": "image/png",
+      "src": "icons/gameicon.svg",
+      "type": "image/svg",
       "sizes": "512x512"
     }
   ]

@@ -1,146 +1,143 @@
-﻿using System.Collections.Generic;
+﻿using FurmaIdle.Models;
 using FurmaIdle.Helpers;
-using FurmaIdle.Models;
 
 namespace FurmaIdle.Data
 {
-    public static class CharacterData
+    public class CharacterData
     {
         public static int SchemaVersion => 1;
 
-        // ordem de exibição/seed
-        public static readonly List<string> Order = new() { "p00", "p01", "p02", "p03", "p04", "p05" };
+        public static readonly List<string> ShowOrder = new();
 
-        // catálogo IMUTÁVEL (não use em runtime diretamente)
         internal static readonly Dictionary<string, CharacterModel> All = new()
         {
-            #region s00
-            ["p00"] = new CharacterModel
+            #region s01
+            ["p001"] = new CharacterModel
             {
-                Id = "p00",
+                Id = "p001",
                 Name = "Ferri Karu",
-                MainKnowId = "k11",
-                SecondKnowId = "k10",
-                KnowContractsIds = new() { "c10", "c20", "c30" },
-                UnknowContractsIds = new() { "c40" },
+                Description = "Taberneiro",
+                Lore = "",
+                Icon = "icons/characters/p001.svg",
+                Image = "images/characters/p001.svg",
+                UnlockId = null,
+                State = UnlockHelper.State.Blocked,
+                CharState = UnlockHelper.CharState.InBase,
+                InStageId = null,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                ContractCap = 1,
+                KnowledgeFactor2 = "k02",
+                KnowledgeFactor1 = "k03",
+                ContractsIds = new() { "c011", "c021", "c031", "c041" },
+                TraitId = "o01",
                 SpecialtyId = "e01",
-                TraitId = "tr00",
-                Sort = 1,
-                Unlocked = true,
-                CharState = CharStateEnum.CharState.InBase,
-                CharDestId = "d00",
-                Avaliable = false,
-                Image = "images/icons/characters/p00.jpg",
-                BigImage = "images/characters/p00.jpg",
-                FullImage = "images/pictures/p00.jpg",
-                MaxContracts = 3
+                Modifiers = new List<ModifierModel>(),
             },
-            ["p01"] = new CharacterModel
+            ["p102"] = new CharacterModel
             {
-                Id = "p01",
+                Id = "p102",
                 Name = "Maik Monhang",
-                MainKnowId = "k10",
-                SecondKnowId = "k12",
-                KnowContractsIds = new() { "c10", "c20", "c31" },
-                UnknowContractsIds = new() { "c41" },
+                Description = "Artesão",
+                Lore = "",
+                Icon = "icons/characters/p102.svg",
+                Image = "images/characters/p102.svg",
+                UnlockId = "up102",
+                State = UnlockHelper.State.Blocked,
+                CharState = UnlockHelper.CharState.InBase,
+                InStageId = null,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                ContractCap = 1,
+                KnowledgeFactor2 = "k01",
+                KnowledgeFactor1 = "k03",
+                ContractsIds = new() { "c011", "c021", "c032", "c042" },
+                TraitId = "o02",
                 SpecialtyId = "e02",
-                Sort = 2,
-                Unlocked = true,
-                CharState = CharStateEnum.CharState.InBase,
-                CharDestId = "d00",
-                Avaliable = false,
-                TraitId = "tr01",
-                Image = "images/icons/characters/p01.jpg",
-                BigImage = "images/characters/p01.jpg",
-                FullImage = "images/pictures/p01.jpg",
-                MaxContracts = 3
+                Modifiers = new List<ModifierModel>(),
             },
-            ["p02"] = new CharacterModel
+            ["p103"] = new CharacterModel
             {
-                Id = "p02",
+                Id = "p103",
                 Name = "Claimi Eky",
-                MainKnowId = "k12",
-                SecondKnowId = "k11",
-                KnowContractsIds = new() { "c11", "c21", "c30" },
-                UnknowContractsIds = new() { "c42" },
-                SpecialtyId = "e00",
-                Sort = 3,
-                Unlocked = true,
-                CharState = CharStateEnum.CharState.InBase,
-                CharDestId = "d00",
-                Avaliable = false,
-                TraitId = "tr04",
-                Image = "images/icons/characters/p02.jpg",
-                BigImage = "images/characters/p02.jpg",
-                FullImage = "images/pictures/p02.jpg",
-                MaxContracts = 3
-            },
-            ["p03"] = new CharacterModel
-            {
-                Id = "p03",
-                Name = "Alan Nhengar",
-                MainKnowId = "k10",
-                SecondKnowId = "k10",
-                KnowContractsIds = new() { "c10", "c22", "c33" },
-                UnknowContractsIds = new() { "c43" },
-                SpecialtyId = "e02",
-                Sort = 4,
-                Unlocked = false,
-                CharState = CharStateEnum.CharState.Locked,
-                CharDestId = "d00",
-                Avaliable = true,
-                TraitId = "tr03",
-                Image = "images/icons/characters/p03.jpg",
-                BigImage = "images/characters/p03.jpg",
-                FullImage = "images/pictures/p03.jpg",
-                MaxContracts = 3,
-                Cost = 5000,
-                CostResourceId = "r001"
-            },
-            ["p04"] = new CharacterModel
-            {
-                Id = "p04",
-                Name = "Jaime Boor",
-                MainKnowId = "k11",
-                SecondKnowId = "k20",
-                KnowContractsIds = new() { "c11", "c21", "c31" },
-                UnknowContractsIds = new() { "c44" },
+                Description = "Pescador",
+                Lore = "",
+                Icon = "icons/characters/p103.svg",
+                Image = "images/characters/p103.svg",
+                UnlockId = "up103",
+                State = UnlockHelper.State.Blocked,
+                CharState = UnlockHelper.CharState.InBase,
+                InStageId = null,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                ContractCap = 1,
+                KnowledgeFactor2 = "k03",
+                KnowledgeFactor1 = "k02",
+                ContractsIds = new() { "c012", "c022", "c031", "c043" },
+                TraitId = "o03",
                 SpecialtyId = "e03",
-                Sort = 5,
-                Unlocked = false,
-                CharState = CharStateEnum.CharState.Locked,
-                CharDestId = "d01",
-                Avaliable = false,
-                TraitId = "tr02",
-                Image = "images/icons/characters/p04.jpg",
-                BigImage = "images/characters/p04.jpg",
-                FullImage = "images/pictures/p04.jpg",
-                MaxContracts = 3,
-                Cost = 8000,
-                CostResourceId = "r001"
+                Modifiers = new List<ModifierModel>(),
             },
-            ["p05"] = new CharacterModel
+            ["p104"] = new CharacterModel
             {
-                Id = "p05",
+                Id = "p104",
+                Name = "Alan Nhengar",
+                Description = "Bardo",
+                Lore = "",
+                Icon = "icons/characters/p104.svg",
+                Image = "images/characters/p104.svg",
+                UnlockId = "up104",
+                State = UnlockHelper.State.Blocked,
+                CharState = UnlockHelper.CharState.Blocked,
+                InStageId = null,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                ContractCap = 1,
+                KnowledgeFactor2 = "k01",
+                KnowledgeFactor1 = null,
+                ContractsIds = new() { "c011", "c023", "c034", "c044" },
+                TraitId = "o04",
+                SpecialtyId = "e04",
+                Modifiers = new List<ModifierModel>(),
+            },
+            ["p111"] = new CharacterModel
+            {
+                Id = "p111",
+                Name = "Jaime Boor",
+                Description = "Explorador",
+                Lore = "",
+                Icon = "icons/characters/p111.svg",
+                Image = "images/characters/p111.svg",
+                UnlockId = "up111",
+                State = UnlockHelper.State.Blocked,
+                CharState = UnlockHelper.CharState.Blocked,
+                InStageId = null,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                ContractCap = 1,
+                KnowledgeFactor2 = "k02",
+                KnowledgeFactor1 = "k04",
+                ContractsIds = new() { "c012", "c022", "c032", "c045" },
+                TraitId = "o05",
+                SpecialtyId = "e05",
+                Modifiers = new List<ModifierModel>(),
+            },
+            ["p121"] = new CharacterModel
+            {
+                Id = "p121",
                 Name = "Yg Iepora",
-                MainKnowId = "k12",
-                SecondKnowId = "k12",
-                KnowContractsIds = new() { "c10", "c21", "c32" },
-                UnknowContractsIds = new() { "c44" },
-                SpecialtyId = "e00",
-                Sort = 6,
-                Unlocked = false,
-                CharState = CharStateEnum.CharState.Locked,
-                CharDestId = "d02",
-                Avaliable = false,
-                TraitId = "tr04",
-                Image = "images/icons/characters/p05.jpg",
-                BigImage = "images/characters/p05.jpg",
-                FullImage = "images/pictures/p05.jpg",
-                MaxContracts = 3,
-                Cost = 20000,
-                CostResourceId = "r001"
-            }
+                Description = "Caçador",
+                Lore = "",
+                Icon = "icons/characters/p121.svg",
+                Image = "images/characters/p121.svg",
+                UnlockId = "up121",
+                State = UnlockHelper.State.Blocked,
+                CharState = UnlockHelper.CharState.Blocked,
+                InStageId = null,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                ContractCap = 1,
+                KnowledgeFactor2 = "k03",
+                KnowledgeFactor1 = "k05",
+                ContractsIds = new() { "c011", "c022", "c033", "c045" },
+                TraitId = "o06",
+                SpecialtyId = "e06",
+                Modifiers = new List<ModifierModel>(),
+            },
             #endregion
         };
 
@@ -151,30 +148,43 @@ namespace FurmaIdle.Data
             {
                 Id = chara.Id,
                 Name = chara.Name,
-                MainKnowId = chara.MainKnowId,
-                SecondKnowId = chara.SecondKnowId,
-                KnowContractsIds = new List<string>(chara.KnowContractsIds),
-                UnknowContractsIds = new List<string>(chara.UnknowContractsIds),
-                SpecialtyId = chara.SpecialtyId,
-                Sort = chara.Sort,
-                Unlocked = chara.Unlocked,
-                CharState = chara.CharState,
-                CharDestId = chara.CharDestId,
-                Avaliable = chara.Avaliable,
-                TraitId = chara.TraitId,
+                Description = chara.Description,
+                Lore = chara.Lore,
+                Icon = chara.Icon,
                 Image = chara.Image,
-                BigImage = chara.BigImage,
-                FullImage = chara.FullImage,
-                MaxContracts = chara.MaxContracts,
-                Cost = chara.Cost,
-                CostResourceId = chara.CostResourceId,
+                UnlockId = chara.UnlockId,
+                State = chara.State,
+                CharState = chara.CharState,
+                InStageId = chara.InStageId,
+                Persistence= chara.Persistence,
+                ContractCap = chara.ContractCap,
+                KnowledgeFactor2 = chara.KnowledgeFactor2,
+                KnowledgeFactor1 = chara.KnowledgeFactor1,
+                ContractsIds = chara.ContractsIds,
+                TraitId = chara.TraitId,
+                SpecialtyId = chara.SpecialtyId,
+                Modifiers = chara.Modifiers,
+                UseState = chara.UseState,
             };
+        }
+
+        public static void PopulateOrder()
+        {
+            ShowOrder.Clear();
+            IEnumerable<string> keys = (All == null)
+                ? Enumerable.Empty<string>()
+                : All.Keys.AsEnumerable();
+
+            ShowOrder.AddRange(keys.OrderBy(k => k, StringComparer.Ordinal));
         }
 
         public static Dictionary<string, CharacterModel> CreateInitialStates()
         {
             var dict = new Dictionary<string, CharacterModel>(All.Count);
-            foreach (var id in Order)
+
+            if (ShowOrder.Count == 0) PopulateOrder();
+
+            foreach (var id in ShowOrder)
             {
                 if (!All.TryGetValue(id, out var chara)) continue;
 
@@ -182,25 +192,22 @@ namespace FurmaIdle.Data
                 {
                     Id = chara.Id,
                     Name = chara.Name,
-                    MainKnowId = chara.MainKnowId,
-                    SecondKnowId = chara.SecondKnowId,
-                    KnowContractsIds = new List<string>(chara.KnowContractsIds),
-                    UnknowContractsIds = new List<string>(chara.UnknowContractsIds),
-                    SpecialtyId = chara.SpecialtyId,
-                    Sort = chara.Sort,
-                    Unlocked = chara.Unlocked,
-                    CharState = chara.Unlocked
-                        ? CharStateEnum.CharState.InBase
-                        : CharStateEnum.CharState.Locked,
-                    CharDestId = chara.CharDestId,
-                    Avaliable = chara.Avaliable,
-                    TraitId = chara.TraitId,
+                    Description = chara.Description,
+                    Lore = chara.Lore,
+                    Icon = chara.Icon,
                     Image = chara.Image,
-                    BigImage = chara.BigImage,
-                    FullImage = chara.FullImage,
-                    MaxContracts = chara.MaxContracts,
-                    Cost = chara.Cost,
-                    CostResourceId = chara.CostResourceId,
+                    UnlockId = chara.UnlockId,
+                    State = chara.State,
+                    InStageId = chara.InStageId,
+                    Persistence = chara.Persistence,
+                    ContractCap = chara.ContractCap,
+                    KnowledgeFactor2 = chara.KnowledgeFactor2,
+                    KnowledgeFactor1 = chara.KnowledgeFactor1,
+                    ContractsIds = chara.ContractsIds,
+                    TraitId = chara.TraitId,
+                    SpecialtyId = chara.SpecialtyId,
+                    Modifiers = chara.Modifiers,
+                    UseState = chara.UseState,
                 };
             }
             return dict;

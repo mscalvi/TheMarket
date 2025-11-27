@@ -1,170 +1,342 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using FurmaIdle.Data;
+﻿using FurmaIdle.Data;
+using FurmaIdle.Helpers;
 using FurmaIdle.Models;
+using System.Diagnostics.Contracts;
 
 namespace FurmaIdle.Services
 {
     public interface IUnlockService
     {
-        void Apply(GameModel m, string type, string id);
-        void ApplyStageEntry(GameModel m, string stageId);
-        void ApplyTechPurchase(GameModel m, string techId);
-        void ApplyDestinationPurchase(GameModel m, string destId);
-        void RecomputeUpgradesAvailability(GameModel m);
-        void ApplyExpansionPurchase(GameModel m, string expId);
+        Task UnlockInitialState();
+        Task UnlockCharacter(string characterId);
+        Task UnlockCoin(string coinId);
+        Task UnlockContract(string contractId);
+        Task UnlockExpansion(string expansionId);
+        Task UnlockKnowledge(string knowledgeId);
+        Task UnlockLocal(string localId);
+        Task UnlockStage(string stageId);
+        Task UnlockTech(string techId);
+        Task UnlockResource(string resourceId);
+        Task UnlockUpgrade(string upgradeId);
     }
 
     public sealed class UnlockService : IUnlockService
     {
-        private readonly IStageService _stages;
-        private readonly IUpgradeService _effects;
+        private readonly ICurrentGameService _game;
+        private readonly ILocateService _locate;
 
-        public UnlockService(IStageService stages, IUpgradeService effects)
+        public UnlockService(ICurrentGameService game, ILocateService locate)
         {
-            _stages = stages;
-            _effects = effects;
+            _game = game;
+            _locate = locate;
         }
 
-        public void Apply(GameModel m, string type, string id)
+        #region Initial State
+        public async Task UnlockInitialState()
         {
-            if (m is null || string.IsNullOrWhiteSpace(type)) return;
-            switch (type.Trim().ToLowerInvariant())
+            await UnlockStage("s01");
+
+            await UnlockExpansion("x10");
+
+            await UnlockLocal("l10");
+
+            await UnlockCharacter("p001");
+
+            await UnlockContract("c011");
+
+            await _game.Mutate(g =>
             {
-                case "stage": ApplyStageEntry(m, id); break;
-                case "tech": ApplyTechPurchase(m, id); break;
-                case "upgrade": RecomputeUpgradesAvailability(m); break;
+                g.SelectedStageId ??= "s01";
+            }, save: true);
+        }
+        #endregion
+
+        #region Character Unlock
+        public async Task UnlockCharacter(string characterId)
+        {
+            await _game.Mutate(game =>
+            {
+                var character = _locate.LocateCharacter(game, characterId);
+
+                foreach (var up in game.Upgrades)
+                {
+                    if (string.Equals(up.Value.UnlockId, character.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (up.Value.State != UnlockHelper.State.Blocked) continue;
+                        up.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {up.Value.Id}: {up.Value.State}");
+                    }
+                }
+
+                character.State = UnlockHelper.State.Unlocked;
+                character.CharState = UnlockHelper.CharState.InBase;
+                Console.WriteLine($"[Unlock] Character {character.Id}: {character.State}");
+                game.GameStats.CharactersUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Coin Unlock
+        public async Task UnlockCoin(string coinId)
+        {
+            await _game.Mutate(game =>
+            {
+                var coin = _locate.LocateCoin(game, coinId);
+
+                coin.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Coin {coin.Id}: {coin.State}");
+                game.GameStats.CoinsUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Contract Unlock
+        public async Task UnlockContract(string contractId)
+        {
+            await _game.Mutate(game =>
+            {
+                var contract = _locate.LocateContract(game, contractId);
+
+                foreach (var up in game.Upgrades)
+                {
+                    if (string.Equals(up.Value.UnlockId, contract.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (up.Value.State != UnlockHelper.State.Blocked) continue;
+                        up.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {up.Value.Id}: {up.Value.State}");
+                    }
+                }
+
+                contract.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Contract {contract.Id}: {contract.State}");
+                game.GameStats.ContractsUnlocked++;
+            }, save: true);
+        }
+
+        #endregion
+
+        #region Expansion Unlock
+        public async Task UnlockExpansion(string expansionId)
+        {
+            await _game.Mutate(game =>
+            {
+                var expansion = _locate.LocateExpansion(game, expansionId);
+
+                foreach (var up in game.Upgrades)
+                {
+                    if (string.Equals(up.Value.UnlockId, expansion.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (up.Value.State != UnlockHelper.State.Blocked) continue;
+                        up.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {up.Value.Id}: {up.Value.State}");
+                    }
+                }
+
+                foreach (var nextExpansion in game.Expansions)
+                {
+                    if (string.Equals(nextExpansion.Value.UnlockId, expansion.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (nextExpansion.Value.State != UnlockHelper.State.Blocked) continue;
+                        nextExpansion.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Expansion {nextExpansion.Value.Id}: {nextExpansion.Value.State}");
+                    }
+                }
+
+                if (expansion.State != UnlockHelper.State.Unlocked)
+                {
+                    expansion.StartedAt = DateTime.Now;
+                }
+
+                expansion.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Expansion {expansion.Id}: {expansion.State} -> {expansion.StartedAt}");
+                game.GameStats.ExpansionsUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Knowledge Unlock
+        public async Task UnlockKnowledge(string knowledgeId)
+        {
+            await _game.Mutate(game =>
+            {
+                var know = _locate.LocateKnowledge(game, knowledgeId);
+
+                know.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Knowledge {know.Id}: {know.State}");
+                game.GameStats.KnowledgesUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Local Unlock
+        public async Task UnlockLocal(string localId)
+        {
+            await _game.Mutate(game =>
+            {
+                var local = _locate.LocateLocal(game, localId);
+
+                foreach (var up in game.Upgrades)
+                {
+                    if (string.Equals(up.Value.UnlockId, local.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (up.Value.State != UnlockHelper.State.Blocked) continue;
+                        up.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {up.Value.Id}: {up.Value.State}");
+                    }
+                }
+
+                local.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Local {local.Id}: {local.State}");
+                game.GameStats.LocalsUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Stage Unlock
+        public async Task UnlockStage(string stageId)
+        {
+            bool newCoin = false;
+            string newCoinId = "";
+
+            await _game.Mutate(game =>
+            {
+                var stage = _locate.LocateStage(game, stageId);
+
+                foreach (var coin in game.Coins)
+                {
+                    if (string.Equals(coin.Value.UnlockId, stage.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (coin.Value.State != UnlockHelper.State.Blocked) continue;
+                        coin.Value.State = UnlockHelper.State.Available;
+                        newCoin = true;
+                        newCoinId = coin.Value.Id;
+                        Console.WriteLine($"[Unlock] Coin {coin.Value.Id}: {coin.Value.State}");
+                    }
+                }
+
+                foreach (var up in game.Upgrades)
+                {
+                    if (string.Equals(up.Value.UnlockId, stage.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (up.Value.State != UnlockHelper.State.Blocked) continue;
+                        up.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {up.Value.Id}: {up.Value.State}");
+                    }
+                }
+
+                stage.State = UnlockHelper.State.Unlocked;
+
+                Console.WriteLine($"[Unlock] Stage {stage.Id}: {stage.State}");
+                game.GameStats.StagesUnlocked++;
+            }, save: true);
+
+            if (newCoin)
+            {
+                await UnlockCoin(newCoinId);
             }
         }
+        #endregion
 
-        public void ApplyStageEntry(GameModel m, string stageId)
+        #region Tech Unlock
+        public async Task UnlockTech(string techId)
         {
-            if (string.IsNullOrWhiteSpace(stageId)) return;
-            if (!m.Stages.TryGetValue(stageId, out var st)) return;
-
-            var destIds = DestinationData.Order
-                .Select(id => DestinationData.GetDef(id))
-                .Where(d => string.Equals(d.StageId, stageId, StringComparison.OrdinalIgnoreCase))
-                .Select(d => d.Id)
-                .ToList();
-
-            foreach (var did in destIds)
+            await _game.Mutate(game =>
             {
-                if (m.Destinations.TryGetValue(did, out var live) && live.Unlocked)
+                var tech = _locate.LocateTech(game, techId);
+
+                foreach (var up in game.Upgrades)
                 {
-                    ApplyDestinationPurchase(m, did);
+                    if (string.Equals(up.Value.UnlockId, tech.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (up.Value.State != UnlockHelper.State.Blocked) continue;
+                        up.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {up.Value.Id}: {up.Value.State}");
+                    }
+                }
+
+                tech.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Tech {tech.Id}: {tech.State}");
+                game.GameStats.TechUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Resource Unlock
+        public async Task UnlockResource(string resourceId)
+        {
+            await _game.Mutate(game =>
+            {
+                var resource = _locate.LocateResource(game, resourceId);
+
+                resource.State = UnlockHelper.State.Unlocked;
+                Console.WriteLine($"[Unlock] Resource {resource.Id}: {resource.State}");
+                game.GameStats.ResourcesUnlocked++;
+            }, save: true);
+        }
+        #endregion
+
+        #region Upgrade Unlock
+        public async Task UnlockUpgrade(string upgradeId)
+        {
+            var up = _locate.LocateUpgrade(_game.CurrentGame, upgradeId);
+
+            if (up.EffectOp == EffectHelper.EffectOperation.Unlock)
+            {
+                switch (up.EffectType)
+                {
+                    case EffectHelper.EffectType.ContractUnlock:
+                        await UnlockContract(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.KnowledgeUnlock:
+                        await UnlockKnowledge(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.LocalUnlock:
+                        await UnlockLocal(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.CharacterUnlock:
+                        await UnlockCharacter(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.ResourceUnlock:
+                        await UnlockResource(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.StageUnlock:
+                        await UnlockStage(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.ExpansionUnlock:
+                        await UnlockExpansion(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.TechUnlock:
+                        await UnlockTech(up.TargetId);
+                        break;
+                    case EffectHelper.EffectType.CoinUnlock:
+                        await UnlockCoin(up.TargetId);
+                        break;
+
+                    default:
+                        break;
                 }
             }
 
-            _effects.Recompute(m);
-        }
+            await _game.Mutate(game => {
 
-        public void ApplyTechPurchase(GameModel m, string techId)
-        {
-            if (string.IsNullOrWhiteSpace(techId)) return;
-            if (!m.Technologies.TryGetValue(techId, out var t)) return;
-
-            t.Unlocked = true;
-            t.Avaliable = false;
-
-            RecomputeUpgradesAvailability(m);
-            _effects.Recompute(m);
-        }
-
-        public void ApplyDestinationPurchase(GameModel m, string destId)
-        {
-            if (string.IsNullOrWhiteSpace(destId)) return;
-
-            // 0) Valida destino e estágio
-            DestinationModel dDef;
-            try { dDef = DestinationData.GetDef(destId); } catch { return; }
-
-            if (!m.Destinations.TryGetValue(destId, out var dLive))
-            {
-                dLive = new DestinationModel { Id = destId };
-                m.Destinations[destId] = dLive;
-            }
-
-            // reforça estado do catálogo (sem rebaixar nada)
-            dLive.Name = dDef.Name;
-            dLive.Image = dDef.Image;
-            dLive.StageId = dDef.StageId;
-            dLive.Cost = dDef.Cost;
-            dLive.CostResourceId = dDef.CostResourceId;
-
-            // 1) Personagens com CharDestId == destId → ficam disponíveis para compra
-            foreach (var (cid, ch) in m.Characters)
-            {
-                var cDef = CharacterData.GetDef(cid);
-                if (cDef.CharDestId == destId && !ch.Unlocked)
-                    ch.Avaliable = true;
-            }
-
-            // 2) Tecnologias com DestinationId == destId → ficam disponíveis para compra
-            foreach (var (tid, t) in m.Technologies)
-            {
-                var tDef = TechData.GetDef(tid);
-                if (tDef.DestinationId == destId && !t.Unlocked)
-                    t.Avaliable = true;
-            }
-
-            // 3) Contratos da EXPEDIÇÃO do estágio do destino → ficam disponíveis
-            //    (apenas na expedição ativa daquele stage)
-            var stageId = dDef.StageId;
-            if (!string.IsNullOrWhiteSpace(stageId) &&
-                m.Stages.TryGetValue(stageId, out var st) &&
-                st.Expedition is not null)
-            {
-                var ex = st.Expedition;
-                foreach (var (contId, cont) in ex.Contracts)
+                foreach (var upgrade in game.Upgrades)
                 {
-                    var cDef = ContractData.GetDef(contId);
-                    if (cDef.ConDestId == destId)
-                        cont.Avaliable = true;
-                }
-            }
-
-            // 4) Expansões
-            foreach (var (tid, t) in m.Expansions)
-            {
-                var tDef = TechData.GetDef(tid);
-                if (tDef.DestinationId == destId && !t.Unlocked)
-                    t.Avaliable = true;
-            }
-
-            _effects.Recompute(m);
-        }
-
-        public void ApplyExpansionPurchase(GameModel m, string expId)
-        {
-        }
-
-        public void RecomputeUpgradesAvailability(GameModel m)
-        {
-            foreach (var u in m.Upgrades.Values)
-            {
-                // Se não há TechId, tratamos como "sem pré-requisito de tech"
-                // → pode ficar disponível (respeitando Data e Max)
-                if (string.IsNullOrWhiteSpace(u.TechId))
-                {
-                    // Mantém o que o Data já marcou e garante visibilidade até esgotar
-                    u.Avaliable = (u.Avaliable || UpgradeData.GetDef(u.Id).Avaliable || true) && !u.IsMaxed;
-                    continue;
+                    if (string.Equals(upgrade.Value.UnlockId, up.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (upgrade.Value.State != UnlockHelper.State.Blocked) continue;
+                        upgrade.Value.State = UnlockHelper.State.Available;
+                        Console.WriteLine($"[Unlock] Upgrade {upgrade.Value.Id}: {upgrade.Value.State}");
+                    }
                 }
 
-                // Com TechId: só habilita se tech estiver Unlocked
-                if (m.Technologies.TryGetValue(u.TechId, out var t) && t.Unlocked)
-                {
-                    u.Avaliable = !u.IsMaxed;
-                }
-                else
-                {
-                    // NÃO derruba o que o Data trouxe: mantém se já era true
-                    u.Avaliable = u.Avaliable && !u.IsMaxed;
-                }
-            }
-        }
+                up.State = UnlockHelper.State.Unlocked;
 
+                Console.WriteLine($"[Unlock] Upgrade {up.Id}: {up.State}");
+                
+                game.GameStats.UpgradesUnlocked++;
+
+            }, save: true);
+        }
+        #endregion
     }
 }

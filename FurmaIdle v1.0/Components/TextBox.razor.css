@@ -1,0 +1,67 @@
+﻿.text-box{
+    display: grid;
+    grid-template-rows: 1fr;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    font-size: smaller;
+    padding: 2px;
+}
+
+.msg-list {
+    margin: 0;
+    padding: 0;
+}
+
+.msg-body {
+    padding: 0;
+    display: grid;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.msg-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .5rem;
+    align-items: baseline;
+}
+
+.msg-time {
+    color: #64748b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.msg-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-width: 0;
+    line-height: 1.25;
+    text-align: left;
+    padding-left: 3px;
+}
+
+.msg-time, .msg-text {
+    line-height: 1.25;
+}
+
+/* cores por tipo */
+.msg-row.is-info .msg-text {
+    color: whitesmoke;
+}
+
+.msg-row.is-lore .msg-text {
+    color: rgb(180, 95, 53);
+}
+
+.msg-row.is-error .msg-text {
+    color: darkred;
+}
+
+.msg-row.is-unlock .msg-text {
+    color: forestgreen;
+}

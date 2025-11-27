@@ -1,48 +1,135 @@
-﻿using System.Collections.Generic;
-using FurmaIdle.Models;
+﻿using FurmaIdle.Models;
+using FurmaIdle.Helpers;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace FurmaIdle.Data
 {
-    public static class TraitData
+    public class TraitData
     {
-        public static readonly Dictionary<string, TraitModel> All = new()
+        public static int SchemaVersion => 1;
+
+        public static readonly List<string> ShowOrder = new();
+
+        internal static readonly Dictionary<string, TraitModel> All = new()
         {
-            ["tr00"] = new TraitModel
+            #region Traits
+            ["o02"] = new TraitModel
             {
-                Id = "tr00",
-                Name = "Conhecimento Cultural",
-                KnowledgeId = "k10",
-                GainMult = 1.05
+                Id = "o02",
+                Description = "Diminui o Tempo para Servir Bebidas",
+                TargetId = "c021",
+                EffectValue = 0.80,
+                EffectOp = EffectHelper.EffectOperation.Multiplicative,
+                EffectType = EffectHelper.EffectType.ContractTime,
+                EffectSupertype = EffectHelper.EffectSupertype.Time,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["tr01"] = new TraitModel
+            ["o01"] = new TraitModel
             {
-                Id = "tr01",
-                Name = "Conhecimento de Sobrevivência",
-                KnowledgeId = "k12",
-                GainMult = 1.05
+                Id = "o01",
+                Description = "Diminui o Tempo para Organizar Ferramentas",
+                TargetId = "c032",
+                EffectValue = 0.80,
+                EffectOp = EffectHelper.EffectOperation.Multiplicative,
+                EffectType = EffectHelper.EffectType.ContractTime,
+                EffectSupertype = EffectHelper.EffectSupertype.Time,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["tr02"] = new TraitModel
+            ["o03"] = new TraitModel
             {
-                Id = "tr02",
-                Name = "Conhecimento Geográfico",
-                KnowledgeId = "k11",
-                GainMult = 1.05
+                Id = "o03",
+                Description = "Diminui o Tempo para Carregar o Barco",
+                TargetId = "c012",
+                EffectValue = 0.75,
+                EffectOp = EffectHelper.EffectOperation.Multiplicative,
+                EffectType = EffectHelper.EffectType.ContractTime,
+                EffectSupertype = EffectHelper.EffectSupertype.Time,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["tr03"] = new TraitModel
+            ["o04"] = new TraitModel
             {
-                Id = "tr03",
-                Name = "Reduz Custo de Contratação",
-                CharacterCostMult = 0.95
+                Id = "o04",
+                Description = "Diminui o custo das Especialidades",
+                TargetId = "aSpecialties",
+                EffectValue = 0.9,
+                EffectOp = EffectHelper.EffectOperation.Multiplicative,
+                EffectType = EffectHelper.EffectType.SpecialtyCost,
+                EffectSupertype = EffectHelper.EffectSupertype.Cost,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["tr04"] = new TraitModel
+            ["o05"] = new TraitModel
             {
-                Id = "tr04",
-                Name = "Gera Mantimentos",
-                ResourceId = "r100",
-                AddPerSecond = 0.5
+                Id = "o05",
+                Description = "Aumenta a geração de Mantimentos",
+                TargetId = "r01",
+                EffectValue = 0.75,
+                EffectOp = EffectHelper.EffectOperation.Additive,
+                EffectType = EffectHelper.EffectType.ResourceGain,
+                EffectSupertype = EffectHelper.EffectSupertype.Gain,
+                Modifiers = new List<ModifierModel>(),
             },
+            ["o06"] = new TraitModel
+            {
+                Id = "o06",
+                Description = "Aumenta o Ganho para Caçar",
+                TargetId = "c045",
+                EffectValue = 1.5,
+                EffectOp = EffectHelper.EffectOperation.Multiplicative,
+                EffectType = EffectHelper.EffectType.ContractGain,
+                EffectSupertype = EffectHelper.EffectSupertype.Gain,
+                Modifiers = new List<ModifierModel>(),
+            },
+            #endregion
         };
 
-        public static TraitModel GetDef(string id) => All[id];
+        // --- Métodos Reutilizáveis do Padrão ---
+
+        public static TraitModel GetDef(string id)
+        {
+            if (!All.TryGetValue(id, out var trait))
+            {
+                throw new KeyNotFoundException($"Trait with ID '{id}' not found.");
+            }
+
+            return new TraitModel
+            {
+                Id = trait.Id,
+                Description = trait.Description,
+                TargetId = trait.TargetId,
+                EffectValue = trait.EffectValue,
+                EffectOp = trait.EffectOp,
+                EffectType = trait.EffectType,
+                Modifiers = trait.Modifiers,
+                EffectSupertype= trait.EffectSupertype,
+                Persistence = UnlockHelper.Persistence.untilExpedition,
+                UseState = trait.UseState,
+            };
+        }
+
+        public static void PopulateOrder()
+        {
+            ShowOrder.Clear();
+            IEnumerable<string> keys = All?.Keys.AsEnumerable() ?? Enumerable.Empty<string>();
+
+            // Ordena usando StringComparer.Ordinal
+            ShowOrder.AddRange(keys.OrderBy(k => k, StringComparer.Ordinal));
+        }
+
+        public static Dictionary<string, TraitModel> CreateInitialStates()
+        {
+            var dict = new Dictionary<string, TraitModel>(All.Count);
+
+            if (ShowOrder.Count == 0) PopulateOrder();
+
+            foreach (var id in ShowOrder)
+            {
+                if (!All.TryGetValue(id, out var trait)) continue;
+
+                // Cria o estado inicial do modelo clonado
+                dict[id] = GetDef(id);
+            }
+            return dict;
+        }
     }
 }

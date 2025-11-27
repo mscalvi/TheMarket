@@ -6,17 +6,21 @@ namespace FurmaIdle.Models
     {
         public string Id { get; set; }
         public string Name { get; set; }
-        public double Total { get; set; }
-        public double Actual { get; set; }
-        public double PerSecond { get; set; }
-        public double PendingFrac { get; set; }
-        public bool Unlocked { get; set; } = false;
-        public string UpgUnlockId { get; set; }
-        public bool Avaliable { get; set; } = false;
+        public string UnlockId { get; set; }
+        public string Icon { get; set; }
         public string Image { get; set; }
-        public int Sort { get; set; }
-        public int CharacterCap { get; set; }
-        public ResourceEnum.ResourceType ResourceType { get; set; }
-        public ResetPersistenceEnum.ResetPersistence Persistence { get; set; } = ResetPersistenceEnum.ResetPersistence.ExpeditionOnly;
+        public string Lore { get; set; }
+        public string Description { get; set; }
+        public UnlockHelper.Persistence Persistence { get; set; }
+        public UnlockHelper.State State { get; set; }
+        public VersionHelper.UseState UseState { get; set; } = VersionHelper.UseState.InUse;
+
+        public double RsPerSecond { get; set; }
+        public int RsPerChar { get; set; }
+
+        public double RegenActual { get; set; } = 0;
+
+        // Modifier
+        public List<ModifierModel> Modifiers { get; set; }
     }
 }

@@ -1,0 +1,146 @@
+﻿@* Components/ShopMenuTech.razor *@
+@inherits UiHelper
+
+@using System.Linq
+@using FurmaIdle.Models
+@using FurmaIdle.Data
+@using FurmaIdle.Helpers
+@using FurmaIdle.Services
+
+@inject IPurchaseService Purchase
+@inject ICostService Cost
+@inject ILocateService Locate
+@inject ITooltipService Tooltips
+@inject IUiLogService Log
+
+<div class="menu-root">
+    @{
+        var game = Game.CurrentGame;
+        var stage = Locate.LocateStage(game, game.SelectedStageId);
+
+        var availableTechUpgrades = game is null ? Enumerable.Empty<UpgradeModel>() :
+        game.Upgrades.Values
+        .Where(u => u?.Id != null
+        && u.Id.StartsWith("uh", StringComparison.OrdinalIgnoreCase)
+        && u.State == UnlockHelper.State.Available);
+
+        var unlockedKnowledges = game is null ? Enumerable.Empty<KnowledgeModel>() :
+        game.Knowledges.Values
+        .Where(k => k.State == UnlockHelper.State.Unlocked);
+
+        var unlockedTechs = game is null ? Enumerable.Empty<TechModel>() :
+        game.Techs.Values
+        .Where(t => t.State == UnlockHelper.State.Unlocked)
+        .OrderBy(t => t.Id);
+    }
+
+    <section class="@($"menu-panel {UI.PanelClass("tech-knowledge")}")">
+        <h3 class="title">Conhecimentos</h3>
+        <table class="info-table">
+            <tbody>
+                @foreach (var k in unlockedKnowledges)
+                {
+                    var total = Total(k.Id);
+                    <tr class="info-row"
+                        @onmouseenter="() => Tooltips.Show(Tooltips.GetHover(HoverType.Knowledge, k.Id, stage!.Id))"
+                        @onmouseleave="Tooltips.Clear">
+                        <td class="info-name">@k.Name</td>
+                        <td class="info-value">@total.atual.ToString("N0") / @total.total.ToString("N0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="@($"menu-panel menu-section {UI.PanelClass("tech-available")}")">
+        <h3 class="title">Pesquisas Disponíveis</h3>
+        <div class="icon-grid">
+            @foreach (var u in availableTechUpgrades)
+            {
+                var can = Cost.CanAfford(ItemHelper.ItemType.Upgrade, u.Id, stage.Id);
+                <button class="icon-button"
+                        disabled="@(!can)"
+                        @onmouseenter="() => Tooltips.Show(Tooltips.GetHover(HoverType.Upgrade, u.Id, stage.Id))"
+                        @onmouseleave="Tooltips.Clear"
+                        @onclick="() => OnClickBuyTech(u.Id)">
+                    @if (!string.IsNullOrWhiteSpace(u.Icon))
+                    {
+                        <img src="@u.Icon"
+                             alt="@u.Id"
+                             class="icon-img" />
+                    }
+                    else
+                    {
+                        @u.Id
+                    }
+                </button>
+            }
+        </div>
+    </section>
+
+    <section class="@($"menu-panel menu-section {UI.PanelClass("tech-done")}")">
+        <h3 class="title">Pesquisadas Realizadas</h3>
+        <div class="icon-grid">
+            @foreach (var t in unlockedTechs)
+            {
+                var can = false;
+                <span class="icon-button"
+                      disabled="@(!can)"
+                      @onmouseenter="() => Tooltips.Show(Tooltips.GetHover(HoverType.Tech, t.Id, stage.Id))"
+                      @onmouseleave="Tooltips.Clear">
+                    @if (!string.IsNullOrWhiteSpace(t.Icon))
+                    {
+                        <img src="@t.Icon"
+                             alt="@t.Id"
+                             class="icon-img" />
+                    }
+                    else
+                    {
+                        @t.Id
+                    }
+                </span>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private bool freeProcess = true;
+
+    private (long atual, long total) Total(string kId)
+    {
+        long total = 0;
+        long atual = 0;
+
+        var game = Game.CurrentGame;
+        var expansion = Locate.LocateExpansion(game, game.CurrentExpansionId);
+
+        expansion.ExpansionStats.Knowledge.TryGetValue(kId, out var value);
+        atual = value;
+
+        expansion.ExpansionStats.KnowledgeGain.TryGetValue(kId, out var tot);
+        total = tot;
+
+        return (atual, total);
+    }
+
+    private async Task OnClickBuyTech(string upgradeId)
+    {
+        if (!Cost.CanAfford(ItemHelper.ItemType.Upgrade, upgradeId, Game.CurrentGame.SelectedStageId))
+        {
+            Log.Error($"Sem recursos para comprar upgrade {upgradeId}.");
+            return;
+        }
+
+        if (freeProcess)
+        {
+            freeProcess = false;
+            await Purchase.Purchase(ItemHelper.ItemType.Upgrade, upgradeId, Game.CurrentGame.SelectedStageId);
+            freeProcess = true;
+        }
+        else
+        {
+            return;
+        }
+    }
+}

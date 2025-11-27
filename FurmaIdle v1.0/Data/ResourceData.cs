@@ -1,94 +1,81 @@
-﻿using System.Collections.Generic;
-using FurmaIdle.Helpers;
-using FurmaIdle.Models;
+﻿using FurmaIdle.Models; // Assumindo que ResourceModel está aqui
+using FurmaIdle.Helpers; // Assumindo que UnlockHelper está aqui
+using System.Collections.Generic;
+using System.Linq;
 
 namespace FurmaIdle.Data
 {
-    public static class ResourceData
+    public class ResourceData
     {
         public static int SchemaVersion => 1;
 
-        public static readonly List<string> Order = new() { "r001", "r100" };
+        public static readonly List<string> ShowOrder = new();
 
         internal static readonly Dictionary<string, ResourceModel> All = new()
         {
-            ["r001"] = new ResourceModel
+            #region Initial Resources
+            ["r01"] = new ResourceModel
             {
-                Id = "r001",
-                Name = "Talho",
-                Image = "images/icons/resources/r001.png",
-                Unlocked = true,
-                Avaliable = true,
-                Total = 0,
-                Actual = 0,
-                PerSecond = 0,
-                ResourceType = ResourceEnum.ResourceType.Coin,
-                Persistence = ResetPersistenceEnum.ResetPersistence.ExpeditionOnly,
-                UpgUnlockId = null,
-                CharacterCap = 0
-            },
-
-            ["r100"] = new ResourceModel
-            {
-                Id = "r100",
+                Id = "r01",
                 Name = "Mantimentos",
-                Image = "images/icons/resources/r100.png",
-                Unlocked = false,
-                Avaliable = false,
-                Total = 0,
-                Actual = 0,
-                PerSecond = 0,
-                ResourceType = ResourceEnum.ResourceType.Resource,
-                Persistence = ResetPersistenceEnum.ResetPersistence.ExpeditionOnly,
-                UpgUnlockId = "mx02",
-                CharacterCap = 50
-            }
+                UnlockId = "ux104",
+                RsPerChar = 30,
+                RsPerSecond = 0.0,
+                Icon = "icons/resources/r01.svg",
+                Image = "images/resources/r01.svg",
+                Lore = "",
+                Description = "",
+                Persistence = UnlockHelper.Persistence.Permanent,
+                State = UnlockHelper.State.Blocked,
+                Modifiers = new List<ModifierModel>(),
+            },
+            #endregion
         };
+
+        // --- Métodos Reutilizáveis do Padrão ---
 
         public static ResourceModel GetDef(string id)
         {
-            var coin = All[id];
+            if (!All.TryGetValue(id, out var resource))
+            {
+                throw new KeyNotFoundException($"Resource with ID '{id}' not found.");
+            }
+
             return new ResourceModel
             {
-                Id = coin.Id,
-                Name = coin.Name,
-                Image = coin.Image,
-                Unlocked = coin.Unlocked,
-                Avaliable = coin.Avaliable,
-                Total = coin.Total,
-                Actual = coin.Actual,
-                PerSecond = coin.PerSecond,
-                ResourceType = coin.ResourceType,
-                Persistence = coin.Persistence,
-                UpgUnlockId = coin.UpgUnlockId,
-                CharacterCap = coin.CharacterCap,
+                Id = resource.Id,
+                Name = resource.Name,
+                UnlockId = resource.UnlockId,
+                RsPerChar = resource.RsPerChar,
+                RsPerSecond = resource.RsPerSecond,
+                Icon = resource.Icon,
+                Image = resource.Image,
+                Lore = resource.Lore,
+                Description = resource.Description,
+                Persistence = resource.Persistence,
+                State = resource.State,
+                Modifiers= resource.Modifiers,
+                UseState = resource.UseState,
             };
         }
 
-        public static Dictionary<string, ResourceModel> CreateInitialResources()
+        public static void PopulateOrder()
         {
-            var CoinsCollection = new Dictionary<string, ResourceModel>(All.Count);
-            foreach (var id in Order)
-            {
-                if (!All.TryGetValue(id, out var coin)) continue;
+            ShowOrder.Clear();
+            IEnumerable<string> keys = All?.Keys.AsEnumerable() ?? Enumerable.Empty<string>();
+            ShowOrder.AddRange(keys.OrderBy(k => k, StringComparer.Ordinal));
+        }
 
-                CoinsCollection[id] = new ResourceModel
-                {
-                    Id = coin.Id,
-                    Name = coin.Name,
-                    Image = coin.Image,
-                    Unlocked = coin.Unlocked,
-                    Avaliable = coin.Avaliable,
-                    Total = coin.Total,
-                    Actual = coin.Actual,
-                    PerSecond = coin.PerSecond,
-                    ResourceType = coin.ResourceType,
-                    Persistence = coin.Persistence,
-                    UpgUnlockId = coin.UpgUnlockId,
-                    CharacterCap = coin.CharacterCap,
-                };
+        public static Dictionary<string, ResourceModel> CreateInitialStates()
+        {
+            var dict = new Dictionary<string, ResourceModel>(All.Count);
+            if (ShowOrder.Count == 0) PopulateOrder();
+            foreach (var id in ShowOrder)
+            {
+                if (!All.TryGetValue(id, out var resource)) continue;
+                dict[id] = GetDef(id);
             }
-            return CoinsCollection;
+            return dict;
         }
     }
 }

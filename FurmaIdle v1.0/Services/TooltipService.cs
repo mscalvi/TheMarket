@@ -1,354 +1,799 @@
-﻿// Services/TooltipService.cs
-using FurmaIdle.Data;
+﻿using FurmaIdle.Data;
 using FurmaIdle.Helpers;
 using FurmaIdle.Models;
 using FurmaIdle.Services;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Text;
+using static FurmaIdle.Helpers.EffectHelper;
+using static FurmaIdle.Helpers.UnlockHelper;
 
 namespace FurmaIdle.Services
 {
-    public enum HoverType { Personagem, Especialidade, Tecnologia, Destino, Melhoria }
-    public sealed record HoverTip(string Title, string Body);
+    public enum HoverType { Character, Specialty, Tech, Local, Upgrade, Contract, Stage, Expedition, Knowledge, Coins, Resources }
 
     public interface ITooltipService
     {
-        HoverTip GetHover(HoverType type, string id, string? stageId = null);
+        TooltipModel GetHover(HoverType type, string id, string? stageId = null);
+
+        TooltipModel? Current { get; }
+        void Show(TooltipModel tip);
+        void Clear();
+        event Action? Changed;
     }
 
     public sealed class TooltipService : ITooltipService
     {
-        private readonly IGameService _game;
-        private readonly IUpgradeService _effects;
+        private readonly ICurrentGameService _game;
+        private readonly ILocateService _locate;
+        private readonly ICostService _cost;
+        private readonly IContractsService _contract;
+        private readonly IExpeditionService _expedition;
+        private readonly IModifierService _modifier;
+        private readonly IResourcesService _resources;
 
-        public TooltipService(IGameService game, IUpgradeService effects)
+        public TooltipModel? Current { get; private set; }
+        public event Action? Changed;
+
+        public TooltipService(ICurrentGameService game, ILocateService locate, ICostService cost, IContractsService contract, IExpeditionService expedition, IModifierService modifier, IResourcesService resources)
         {
             _game = game;
-            _effects = effects;
+            _locate = locate;
+            _cost = cost;
+            _contract = contract;
+            _expedition = expedition;
+            _modifier = modifier;
+            _resources = resources;
         }
 
-        public HoverTip GetHover(HoverType type, string id, string? stageId = null)
+        public void Show(TooltipModel tip)
         {
+            Current = tip;
+            Changed?.Invoke();
+        }
+
+        public void Clear()
+        {
+            if (Current is null) return;
+            Current = null;
+            Changed?.Invoke();
+        }
+
+        public TooltipModel GetHover(HoverType type, string id, string? stageId = null)
+        {
+            var g = _game.CurrentGame;
             return type switch
             {
-                HoverType.Personagem => BuildPersonHover(id, stageId ?? _game.SelectedStageId),
-                HoverType.Especialidade => BuildEspecialidadeHover(id),
-                HoverType.Tecnologia => BuildTecnologiaHover(id),
-                HoverType.Destino => BuildDestinoHover(id),
-                HoverType.Melhoria => BuildMelhoriaHover(id),
-                _ => new HoverTip("—", "—")
+                HoverType.Character => BuildCharacterHover(id, g),
+                HoverType.Contract => BuildContractHover(id, g),
+                HoverType.Specialty => BuildSpecialtyHover(id, g),
+                HoverType.Tech => BuildTechHover(id, g),
+                HoverType.Local => BuildLocalHover(id, g),
+                HoverType.Upgrade => BuildUpgradeHover(id, g),
+                HoverType.Knowledge => BuildKnowledgeHover(id, g),
+                HoverType.Resources => BuildResourcesHover(id, g),
+                HoverType.Coins => BuildCoinsHover(id, g),
+                HoverType.Expedition => BuildExpeditionHover(id, g),
+                HoverType.Stage => BuildStageHover(id, g),
+                _ => new TooltipModel()
             };
         }
 
-        // ===================== Personagem =====================
-        private HoverTip BuildPersonHover(string id, string stageId)
+        // Upgrade
+        private TooltipModel BuildUpgradeHover(string upgradeId, GameModel game)
         {
-            _game.Current.Characters.TryGetValue(id, out var live);
-            // usa definição só para nomes/listas estáticas
-            CharacterModel? def = null;
-            try { def = CharacterData.GetDef(id); } catch { /* seguro */ }
+            var tooltip = new TooltipModel();
 
-            var name = NameOrId(live?.Name ?? def?.Name, id);
+            var upgrade = _locate.LocateUpgrade(game, upgradeId);
+            var stageIn = _locate.LocateStage(game, game.SelectedStageId);
 
-            // status Base/Expedição
-            string status = "Na Base";
-            if (live?.CharState == CharStateEnum.CharState.OnStage)
+            var cost = _cost.ComputeCost(ItemHelper.ItemType.Upgrade, upgrade.Id, stageIn.Id);
+
+            string upIdType = upgrade.Id.Length >= 2
+                ? upgrade.Id.Substring(0, 2)
+                : upgrade.Id;
+
+            var costCoin = new CoinModel();
+            var costResource = new ResourceModel();
+            var costKnowledge = new KnowledgeModel();
+
+            string costAmount = NumbersHelper.Padronize(cost.costValue);
+            string costIcon = "";
+            string costName = "";
+
+            if (upIdType == "xx")
             {
-                var stName = LookupData.Stage(_game.Current, null, live.CharDestId ?? stageId).Name;
-                status = $"Em expedição: {stName}";
+                costResource = _locate.LocateResource(game, cost.costId);
+                costIcon = costResource.Image;
+                costName = costResource.Name;
+            }
+            else if (upIdType == "uh")
+            {
+                costKnowledge = _locate.LocateKnowledge(game, cost.costId);
+                costIcon = costKnowledge.Image;
+                costName = costKnowledge.Name;
+            }
+            else
+            {
+                costCoin = _locate.LocateCoin(game, cost.costId);
+                costIcon = costCoin.Image;
+                costName = costCoin.Name;
             }
 
-            // conhecimentos
-            string knows = "—";
-            var ch = (live ?? def);
-            if (ch is not null)
+            string type = "";
+            switch (upgrade.EffectSupertype)
             {
-                var listK = new[] { ch.MainKnowId, ch.SecondKnowId }
-                    .Where(s => !string.IsNullOrWhiteSpace(s));
-                knows = listK.Any() ? string.Join(", ", listK) : "—";
+                case EffectHelper.EffectSupertype.Gain:
+                    type = "icons/tooltip/types/gain.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Cost:
+                    type = "icons/tooltip/types/cost.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Time:
+                    type = "icons/tooltip/types/time.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Unlock:
+                    type = "icons/tooltip/types/unlock.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Cap:
+                    type = "icons/tooltip/types/cap.svg";
+                    break;
             }
 
-            // contratos conhecidos + mult efetivos (ganho/tempo)
-            var contractIds = ch?.KnowContractsIds ?? new List<string>();
-            string contractsStr = "—";
-            if (contractIds.Count > 0)
+            string target = "";
+
+            string upTargetId = upgrade.TargetId.Length >= 1
+                ? upgrade.TargetId.Substring(0, 1)
+                : upgrade.TargetId;
+
+            switch (upTargetId)
             {
-                var items = new List<string>(contractIds.Count);
-                foreach (var cid in contractIds)
-                {
-                    // nome
-                    var cname = TryName(() => ContractData.GetDef(cid)?.Name, cid);
-                    // multiplicadores atuais
-                    var g = _effects.ContractGainMult(cid);
-                    var t = _effects.ContractTimeMult(cid);
-                    // x1.10 e x0.90 curtos
-                    items.Add($"{cname} ({cid}) · ganho x{g:0.##} · tempo x{t:0.##}");
-                }
-                contractsStr = string.Join("\n", items);
-            }
-
-            // cap por personagem
-            int baseCap = Math.Max(0, live?.MaxContracts ?? def?.MaxContracts ?? 0);
-            int extra = _effects.ExtraContractsPerChar();
-            int capEff = Math.Max(0, baseCap + extra);
-            string traitLine = SummarizeTrait(live?.TraitId ?? def?.TraitId);
-
-            var body =
-                $"Status: {status}\n" +
-                $"Conhecimentos: {knows}\n" +
-                $"Especialidade: {ch?.SpecialtyId ?? "—"}\n" +
-                $"Cap. de contratos (por personagem): {capEff}  (base {baseCap} + extra {extra})\n" +
-                $"Contratos: {contractsStr}\n" + 
-                $"{traitLine}";
-
-            return new HoverTip($"{name} ({id})", body);
-        }
-
-        private string SummarizeTrait(string? traitId)
-        {
-            if (string.IsNullOrWhiteSpace(traitId)) return "Traço: —";
-            TraitModel t;
-            try { t = TraitData.GetDef(traitId); } catch { return $"Traço: {traitId}"; }
-
-            var sb = new StringBuilder();
-            sb.Append($"Traço: {t.Name}");
-            var hasDetail = false;
-
-            if (t.CharacterCostMult != 1.0)
-            {
-                var perc = (1.0 - t.CharacterCostMult) * 100.0;
-                sb.Append($"\n• Contratação de personagem: -{perc:0.#}%");
-                hasDetail = true;
-            }
-            if (t.AddPerSecond != 0 && !string.IsNullOrWhiteSpace(t.ResourceId))
-            {
-                sb.Append($"\n• +{t.AddPerSecond:0.##}/s em {t.ResourceId}");
-                hasDetail = true;
-            }
-            if (t.GainMult != 1.0 && !string.IsNullOrWhiteSpace(t.KnowledgeId))
-            {
-                sb.Append($"\n• Knowledge {t.KnowledgeId}: x{t.GainMult:0.##}");
-                hasDetail = true;
-            }
-
-            return hasDetail ? sb.ToString() : $"Traço: {t.Name}";
-        }
-
-        // ===================== Especialidade =====================
-        private HoverTip BuildEspecialidadeHover(string charId)
-        {
-            if (!_game.Current.Characters.TryGetValue(charId, out var ch) || string.IsNullOrWhiteSpace(ch.SpecialtyId))
-                return new HoverTip("Especialidade", "—");
-
-            var spec = SpecialtyData.GetDef(ch.SpecialtyId);
-            var cost = $"{spec.Cost:N0} {spec.CostResourceId}";
-            var dur = TimeSpan.FromSeconds(spec.DurationSec);
-
-            string desc = spec.Id switch
-            {
-                "e00" => $"Produção Instantânea\n• Completa 1 ciclo de todos os contratos ativos.\n• Recarga: {dur:mm\\:ss}\n• Custo: {cost}",
-                "e01" => $"Geração de {spec.ResourceIdScope}: x{spec.Value:0.##}\nDuração: {dur:mm\\:ss}\nCusto: {cost}",
-                "e02" => $"Ganho de contratos (coins): x{spec.Value:0.##}\nDuração: {dur:mm\\:ss}\nCusto: {cost}",
-                "e03" => $"Consumo de {spec.ResourceIdScope}: x{spec.Value:0.##}\nDuração: {dur:mm\\:ss}\nCusto: {cost}",
-                _ => $"Duração: {dur:mm\\:ss}\nCusto: {cost}"
-            };
-
-            return new HoverTip($"Especialidade ({spec.Id})", desc);
-        }
-
-
-        // ===================== Tecnologia =====================
-        private HoverTip BuildTecnologiaHover(string id)
-        {
-            // tenta pegar o "live" sem usar ?. em if
-            TechModel? live = null;
-            var techs = _game.Current.Technologies;
-            if (techs != null) techs.TryGetValue(id, out live);
-
-            // catálogo (pode falhar)
-            TechModel? def = null;
-            try { def = TechData.GetDef(id); } catch { /* safe */ }
-
-            // se não houver nem live nem def, retorna placeholder
-            if (live is null && def is null)
-                return new HoverTip($"Tecnologia {id}", "Dados indisponíveis.");
-
-            var name = NameOrId(live?.Name ?? def?.Name, id);
-
-            // destino
-            var destId = def?.DestinationId ?? live?.DestinationId ?? "";
-            var destName = string.IsNullOrWhiteSpace(destId)
-                ? "—"
-                : TryName(() => DestinationData.GetDef(destId).Name, destId);
-
-            // custo (knowledge)
-            var kId = def?.CostKnowledgeId ?? live?.CostKnowledgeId ?? "k??";
-            var cost = Math.Max(0, def?.Cost ?? live?.Cost ?? 0);
-
-            // saldo do conhecimento
-            string haveStr = "";
-            try
-            {
-                int have = 0;
-                if (_game.Current.Knowledges != null &&
-                    _game.Current.Knowledges.TryGetValue(kId, out var k) && k is not null)
-                    have = k.Points;
-                haveStr = $" (você tem {have:N0})";
-            }
-            catch { /* safe */ }
-
-            // estado
-            bool unlocked = live?.Unlocked == true;
-            bool avaliable = live?.Avaliable == true;
-            string state = unlocked ? "Pesquisada"
-                        : (avaliable ? "Disponível para pesquisa" : "Bloqueada");
-
-            // motivo de bloqueio mais comum
-            string reason = "";
-            try
-            {
-                if (!unlocked && !avaliable && !string.IsNullOrWhiteSpace(destId))
-                {
-                    if (_game.Current.Destinations != null &&
-                        _game.Current.Destinations.TryGetValue(destId, out var d) &&
-                        d is not null && !d.Unlocked)
+                case "a":
+                    switch (upgrade.TargetId)
                     {
-                        reason = $"\nRequer destino: {destName} ({destId}).";
+                        case "aCharacters":
+                            target = "icons/tooltip/targets/characters.svg";
+                            break;
+                        case "aContracts":
+                            target = "icons/tooltip/targets/contracts.svg";
+                            break;
+                        case "aSpecialties":
+                            target = "icons/tooltip/targets/specialties.svg";
+                            break;
+                        case "aKnowledges":
+                            target = "icons/tooltip/targets/knowledges.svg";
+                            break;
+                        case "aResources":
+                            target = "icons/tooltip/targets/resources.svg";
+                            break;
+                    }
+                    break;
+                case "c":
+                    var contract = _locate.LocateContract(game, upgrade.TargetId);
+                    target = contract.Icon;
+                    break;
+                case "m":
+                    var coin = _locate.LocateCoin(game, upgrade.TargetId);
+                    target = coin.Icon;
+                    break;
+                case "i":
+                    var click = _locate.LocateClick(game, upgrade.TargetId);
+                    target = click.Icon;
+                    break;
+                case "s":
+                    var stage = _locate.LocateStage(game, upgrade.TargetId);
+                    target = stage.Icon;
+                    break;
+                case "l":
+                    var local = _locate.LocateLocal(game, upgrade.TargetId);
+                    target = local.Icon;
+                    break;
+                case "x":
+                    var expansion = _locate.LocateExpansion(game, upgrade.TargetId);
+                    target = expansion.Icon;
+                    break;
+                case "p":
+                    var character = _locate.LocateCharacter(game, upgrade.TargetId);
+                    target = character.Icon;
+                    break;
+                case "u":
+                    var upgradeTarget = _locate.LocateUpgrade(game, upgrade.TargetId);
+                    target = upgradeTarget.Icon;
+                    break;
+                case "t":
+                    var tech = _locate.LocateTech(game, upgrade.TargetId);
+                    target = tech.Icon;
+                    break;
+                case "k":
+                    var know = _locate.LocateKnowledge(game, upgrade.TargetId);
+                    target = know.Icon;
+                    break;
+                case "r":
+                    var resour = _locate.LocateResource(game, upgrade.TargetId);
+                    target = resour.Icon;
+                    break;
+            }
+
+            string value = "";
+            if (upgrade.EffectOp == EffectHelper.EffectOperation.Additive)
+            {
+                value = "Base +" + NumbersHelper.Padronize(upgrade.EffectValue);
+            }
+            if (upgrade.EffectOp == EffectHelper.EffectOperation.Multiplicative)
+            {
+                value = "Total x" + NumbersHelper.Padronize(upgrade.EffectValue);
+            }
+            if (upgrade.EffectOp == EffectHelper.EffectOperation.Unlock)
+            {
+                value = "icons/tooltip/operations/new.svg";
+            }
+
+            string permanence = "";
+            if(upgrade.Persistence == Persistence.Permanent)
+            {
+                permanence = "icons/tooltip/permanence/permanent.svg";
+            }
+            if (upgrade.Persistence == Persistence.untilExpansion)
+            {
+                permanence = "icons/tooltip/permanence/expansion.svg";
+            }
+            if (upgrade.Persistence == Persistence.untilExpedition)
+            {
+                permanence = "icons/tooltip/permanence/expedition.svg";
+            }
+            if (upgrade.Persistence == Persistence.untilTimer)
+            {
+                permanence = "icons/tooltip/permanence/timer.svg";
+            }
+
+            tooltip.Name = upgrade.Name;
+            tooltip.CostAmount = costAmount;
+            tooltip.CostIcon = costIcon;
+            tooltip.CostName = costName;
+            tooltip.Description = upgrade.Description;
+            tooltip.Info.Add("Tipo", type);
+            tooltip.Info.Add("Alvo", target);
+            tooltip.Info.Add("Valor", value);
+            tooltip.Info.Add("Permanência", permanence);
+            tooltip.Lore = upgrade.Lore;
+
+            return tooltip;
+        }
+
+        // Contract
+        private TooltipModel BuildContractHover(string id, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var contract = _locate.LocateContract(game, id);
+            var stage = _locate.LocateStage(game, game.SelectedStageId);
+
+            var cost = _cost.ComputeCost(ItemHelper.ItemType.Contract, contract.Id, stage.Id);
+
+            var coin = _locate.LocateCoin(game, cost.costId);
+            string custo = NumbersHelper.Padronize(cost.costValue);
+
+            string costAmount = custo;
+            string costIcon = coin.Image;
+            string costName = coin.Name;
+
+            string level = "";
+            switch (contract.Level)
+            {
+                case 1:
+                    level = "icons/tooltip/contracts/trivial.svg";
+                    break;
+                case 2:
+                    level = "icons/tooltip/contracts/aprendiz.svg";
+                    break;
+                case 3:
+                    level = "icons/tooltip/contracts/novato.svg";
+                    break;
+                case 4:
+                    level = "icons/tooltip/contracts/profissional.svg";
+                    break;
+                case 5:
+                    level = "icons/tooltip/contracts/mestre.svg";
+                    break;
+                case 6:
+                    level = "icons/tooltip/contracts/especialista.svg";
+                    break;
+            }
+
+            double perSec = 0;
+
+            string gainBase = "";
+            var baseInfo = ContractHelper.GetContractBase(contract);
+            perSec = baseInfo.CoinsPerCycle / baseInfo.SecondsPerCycle;
+            gainBase = NumbersHelper.Padronize(perSec) + " " + coin.Name + "/s";
+
+            string gainActual = "";
+            var actualInfo = _contract.GetContractInfo(contract, stage);
+            perSec = actualInfo.CoinsPerCycle / actualInfo.SecondsPerCycle;
+            gainActual = NumbersHelper.Padronize(perSec) + " " + coin.Name + "/s";
+            
+            string knows = "";
+            if (!string.IsNullOrWhiteSpace(contract.KnowledgeFactor1))
+            {
+                knows += contract.KnowledgeFactor1;
+            } else
+            {
+                knows += "k00";
+            }
+            if (!string.IsNullOrWhiteSpace(contract.KnowledgeFactor2))
+            {
+                knows += contract.KnowledgeFactor2;
+            }
+            else
+            {
+                knows += "k00";
+            }
+            knows += ".svg";
+
+            tooltip.Name = contract.Name;
+            tooltip.CostAmount = costAmount;
+            tooltip.CostIcon = costIcon;
+            tooltip.CostName = costName;
+            tooltip.Description = contract.Description;
+            tooltip.Info.Add("Nível", level);
+            tooltip.Info.Add("Fator", knows);
+            tooltip.Info.Add("Base", gainBase);
+            tooltip.Info.Add("Atual", gainActual);
+            tooltip.Lore = contract.Lore;
+
+            return tooltip;
+        }
+
+        // Specialty
+        private TooltipModel BuildSpecialtyHover(string id, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var specialty = _locate.LocateSpecialty(game, id);
+            var stageIn = _locate.LocateStage(game, game.SelectedStageId);
+
+            var cost = _cost.ComputeCost(ItemHelper.ItemType.Specialty, specialty.Id, stageIn.Id);
+
+            var costResource = new ResourceModel();
+
+            costResource = _locate.LocateResource(game, cost.costId);
+            string custo = NumbersHelper.Padronize(cost.costValue);
+
+            string costAmount = custo;
+            string costIcon = costResource.Image;
+            string costName = costResource.Name;
+
+            string specTarget = specialty.TargetId.Length >= 2
+                ? specialty.TargetId.Substring(0, 1)
+                : specialty.TargetId;
+
+            string target = "";
+            switch (specTarget)
+            {
+                case "a":
+                    switch (specialty.TargetId)
+                    {
+                        case "aCharacters":
+                            target = "icons/tooltip/targets/characters.svg";
+                            break;
+                        case "aContracts":
+                            target = "icons/tooltip/targets/contracts.svg";
+                            break;
+                        case "aSpecialties":
+                            target = "icons/tooltip/targets/specialties.svg";
+                            break;
+                        case "aKnowledges":
+                            target = "icons/tooltip/targets/knowledges.svg";
+                            break;
+                        case "aResources":
+                            target = "icons/tooltip/targets/resources.svg";
+                            break;
+                    }
+                    break;
+                case "c":
+                    var contract = _locate.LocateContract(game, specialty.TargetId);
+                    target = contract.Icon;
+                    break;
+                case "m":
+                    var coin = _locate.LocateCoin(game, specialty.TargetId);
+                    target = coin.Icon;
+                    break;
+                case "i":
+                    var click = _locate.LocateClick(game, specialty.TargetId);
+                    target = click.Icon;
+                    break;
+                case "s":
+                    var stage = _locate.LocateStage(game, specialty.TargetId);
+                    target = stage.Icon;
+                    break;
+                case "l":
+                    var local = _locate.LocateLocal(game, specialty.TargetId);
+                    target = local.Icon;
+                    break;
+                case "x":
+                    var expansion = _locate.LocateExpansion(game, specialty.TargetId);
+                    target = expansion.Icon;
+                    break;
+                case "p":
+                    var character = _locate.LocateCharacter(game, specialty.TargetId);
+                    target = character.Icon;
+                    break;
+                case "u":
+                    var upgradeTarget = _locate.LocateUpgrade(game, specialty.TargetId);
+                    target = upgradeTarget.Icon;
+                    break;
+                case "t":
+                    var tech = _locate.LocateTech(game, specialty.TargetId);
+                    target = tech.Icon;
+                    break;
+                case "k":
+                    var know = _locate.LocateKnowledge(game, specialty.TargetId);
+                    target = know.Icon;
+                    break;
+                case "r":
+                    var resour = _locate.LocateResource(game, specialty.TargetId);
+                    target = resour.Icon;
+                    break;
+            }
+
+            string value = "";
+            if (specialty.EffectOp == EffectHelper.EffectOperation.Additive)
+            {
+                value = "Base +" + NumbersHelper.Padronize(specialty.EffectValue);
+            }
+            if (specialty.EffectOp == EffectHelper.EffectOperation.Multiplicative)
+            {
+                value = "Total x" + NumbersHelper.Padronize(specialty.EffectValue);
+            }
+            if (specialty.EffectOp == EffectHelper.EffectOperation.Unlock)
+            {
+                value = "icons/tooltip/operations/new.svg";
+            }
+
+            string type = "";
+            switch (specialty.EffectSupertype)
+            {
+                case EffectHelper.EffectSupertype.Gain:
+                    type = "icons/tooltip/types/gain.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Cost:
+                    type = "icons/tooltip/types/cost.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Time:
+                    type = "icons/tooltip/types/time.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Unlock:
+                    type = "icons/tooltip/types/unlock.svg";
+                    break;
+                case EffectHelper.EffectSupertype.Cap:
+                    type = "icons/tooltip/types/cap.svg";
+                    break;
+            }
+
+
+            var timerModifiers = _modifier.GetModifiers(ItemHelper.ItemType.Specialty, specialty.Id, stageIn.Id, EffectSupertype.Time);
+            double duration = (specialty.Duration + timerModifiers.AddMod) * timerModifiers.MultMod;
+
+            string specDuration = NumbersHelper.Padronize(duration);
+
+            tooltip.Name = specialty.Name;
+            tooltip.CostAmount = costAmount;
+            tooltip.CostIcon = costIcon;
+            tooltip.CostName = costName;
+            tooltip.Description = specialty.Description;
+            tooltip.Info.Add("Tipo", type);
+            tooltip.Info.Add("Alvo", target);
+            tooltip.Info.Add("Valor", value);
+            tooltip.Info.Add("Duração", specDuration);
+            tooltip.Lore = specialty.Lore;
+
+            return tooltip;
+        }
+
+        // Character
+        private TooltipModel BuildCharacterHover(string charId, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var character = _locate.LocateCharacter(game, charId);
+
+            var specialty = _locate.LocateSpecialty(game, character.SpecialtyId);
+
+            var trait = _locate.LocateTrait(game, character.TraitId);
+
+            string knows = "";
+            if (!string.IsNullOrWhiteSpace(character.KnowledgeFactor1))
+            {
+                knows += character.KnowledgeFactor1;
+            }
+            else
+            {
+                knows += "k00";
+            }
+            if (!string.IsNullOrWhiteSpace(character.KnowledgeFactor2))
+            {
+                knows += character.KnowledgeFactor2;
+            }
+            else
+            {
+                knows += "k00";
+            }
+            knows += ".svg";
+
+            var contract = new ContractModel();
+            string contracts = "";
+            if (character.ContractsIds != null)
+            {
+                foreach (var contractId in character.ContractsIds)
+                {
+                    if(contractId != null)
+                    {
+                        contract = _locate.LocateContract(game, contractId);
+                        if (contracts == "")
+                        {
+                            contracts += contract.Name;
+                        }
+                        else
+                        {
+                            contracts += " - " + contract.Name;
+                        }
                     }
                 }
             }
-            catch { /* safe */ }
 
-            var title = $"{name} ({id})";
-            var body =
-                $"Destino: {destName} ({destId})\n" +
-                $"Custo: {cost:N0} {kId}{haveStr}\n" +
-                $"Status: {state}{reason}";
-
-            return new HoverTip(title, body);
-        }
-
-
-        // ===================== Destino =====================
-        private HoverTip BuildDestinoHover(string id)
-        {
-            DestinationModel? def = null;
-            try { def = DestinationData.GetDef(id); } catch { /* seguro */ }
-
-            if (def is null) return new HoverTip($"Destino {id}", "Dados indisponíveis.");
-
-            var resName = TryName(() => ResourceData.GetDef(def.CostResourceId).Name, def.CostResourceId);
-            var stageName = TryName(() => StageData.GetDef(def.StageId).Name, def.StageId);
-
-            var title = $"{def.Name} ({id})";
-            var body =
-                $"Stage: {stageName} ({def.StageId})\n" +
-                $"Custo: {def.Cost:N0} {resName} ({def.CostResourceId})\n" +
-                $"Estado: {(def.Unlocked ? "Desbloqueado" : "Bloqueado")}";
-
-            return new HoverTip(title, body);
-        }
-
-        // ===================== Melhoria (Upgrade) =====================
-        private HoverTip BuildMelhoriaHover(string id)
-        {
-            // catálogo + vivo
-            UpgradeModel? def = null;
-            try { def = UpgradeData.GetDef(id); } catch { /* seguro */ }
-            _game.Current.Upgrades.TryGetValue(id, out var live);
-
-            var title = NameOrId(def?.Name ?? live?.Name, id) + $" ({id})";
-
-            if (def is null && live is null)
-                return new HoverTip(title, "Dados indisponíveis.");
-
-            int buys = live?.Buys ?? 0;
-            int max = (live?.MaxBuys ?? def?.MaxBuys) ?? 0;
-            bool isMax = (live?.IsMaxed ?? false) || (max > 0 && buys >= max);
-
-            // custo próximo
-            string costLine = "—";
-            try
+            var stage = new StageModel();
+            string state = "";
+            if (character.CharState == UnlockHelper.CharState.Blocked)
             {
-                if (isMax) costLine = "Maxeada";
-                else
-                {
-                    var uref = live ?? def!;
-                    var resId = string.IsNullOrWhiteSpace(uref.CostResourceId) ? "r001" : uref.CostResourceId;
-                    var resName = TryName(() => ResourceData.GetDef(resId).Name, resId);
-                    double next = Helpers.UpgradePricingHelper.NextPrice(uref);
-                    costLine = $"Próximo custo: {next:N0} {resName} ({resId})";
-                }
+                state = "icons/tooltip/state/blocked.svg";
             }
-            catch { /* seguro */ }
-
-            // efeitos legíveis
-            var effects = SummarizeEffects(def?.Effects ?? live?.Effects);
-
-            // gating por tecnologia (se houver TechId no catálogo)
-            string techReq = string.Empty;
-            var techId = def?.TechId ?? live?.TechId;
-            if (!string.IsNullOrWhiteSpace(techId))
+            if (character.CharState == UnlockHelper.CharState.InLine)
             {
-                bool unlocked = _game.Current.Technologies != null
-                    && _game.Current.Technologies.TryGetValue(techId!, out var t) && t.Unlocked;
-                techReq = unlocked ? "" : $"\nRequer Tecnologia {techId}.";
+                state = "icons/tooltip/state/inline.svg";
+            }
+            if (character.CharState == UnlockHelper.CharState.InBase)
+            {
+                state = "icons/tooltip/state/inbase.svg";
+            }
+            if (character.CharState == UnlockHelper.CharState.InStage)
+            {
+                stage = _locate.LocateStage(game, character.InStageId);
+                state = stage.Icon;
             }
 
-            var body =
-                $"{effects}\n" +
-                $"Compras: {buys}/{(max <= 0 ? "∞" : max)}\n" +
-                $"{costLine}{techReq}";
+            tooltip.Name = character.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = character.Description + " " + trait.Description;
+            tooltip.Info.Add("Estado", state);
+            tooltip.Info.Add("Fatores", knows);
+            tooltip.Info.Add("Especialidade", specialty.Icon);
+            tooltip.Info.Add("Contratos", contracts);
+            tooltip.Lore = character.Lore;
 
-            return new HoverTip(title, body);
+            return tooltip;
         }
 
-        // ===================== Helpers =====================
-        private static string NameOrId(string? name, string id)
-            => string.IsNullOrWhiteSpace(name) ? id : name!;
-
-        private static string TryName(Func<string?> getter, string fallbackId)
+        // Local
+        private TooltipModel BuildLocalHover(string id, GameModel game)
         {
-            try
-            {
-                var s = getter?.Invoke();
-                return string.IsNullOrWhiteSpace(s) ? fallbackId : s!;
-            }
-            catch { return fallbackId; }
+            var tooltip = new TooltipModel();
+
+            var local = _locate.LocateLocal(game, id);
+            var stage = _locate.LocateStage(game, local.StageId);
+
+            tooltip.Name = local.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = local.Description;
+            tooltip.Info.Add("Região", stage.Icon);
+            tooltip.Info.Add("1", " ");
+            tooltip.Info.Add("2", " ");
+            tooltip.Info.Add("3", " ");
+            tooltip.Lore = local.Lore;
+
+            return tooltip;
         }
 
-        private string SummarizeEffects(List<UpgradeEffectModel>? list)
+        // Techs
+        private TooltipModel BuildTechHover(string id, GameModel game)
         {
-            if (list is null || list.Count == 0) return "Sem efeitos.";
-            var sb = new StringBuilder();
-            foreach (var e in list)
+            var tooltip = new TooltipModel();
+
+            var tech = _locate.LocateTech(game, id);
+
+            string know = "";
+            switch (tech.PricingId)
             {
-                var scope = string.IsNullOrWhiteSpace(e.ScopeId) ? "all" : e.ScopeId;
-                switch (e.Target)
-                {
-                    case EffectTarget.ContractGain:
-                        sb.AppendLine($"Contrato {scope}: ganho x{e.Value:0.##}");
-                        break;
-                    case EffectTarget.ContractTime:
-                        sb.AppendLine($"Contrato {scope}: tempo x{e.Value:0.##}");
-                        break;
-                    case EffectTarget.ClicksGain:
-                        sb.AppendLine($"Clicks: x{e.Value:0.##}");
-                        break;
-                    case EffectTarget.ResourceGen:
-                        sb.AppendLine($"Geração de recurso {scope}: {(e.Value >= 0 ? "+" : "")}{e.Value:0.##}/s");
-                        break;
-                    case EffectTarget.ContractCap:
-                        sb.AppendLine($"Cap. de contratos ({scope}): {(e.Value >= 0 ? "+" : "")}{e.Value:0.##} por personagem");
-                        break;
-                    default:
-                        sb.AppendLine($"{e.Target} {scope}: {e.Value}");
-                        break;
-                }
+                case PricingHelper.PricingId.TechUnlockk01:
+                    know = "icons/tooltip/knowledges/cultural.svg";
+                    break;
+                case PricingHelper.PricingId.TechUnlockk02:
+                    know = "icons/tooltip/knowledges/geografico.svg";
+                    break;
+                case PricingHelper.PricingId.TechUnlockk03:
+                    know = "icons/tooltip/knowledges/sobrevivencia.svg";
+                    break;
+                case PricingHelper.PricingId.TechUnlockk04:
+                    know = "icons/tooltip/knowledges/navegacao.svg";
+                    break;
+                case PricingHelper.PricingId.TechUnlockk05:
+                    know = "icons/tooltip/knowledges/caca.svg";
+                    break;
             }
-            return sb.ToString().TrimEnd();
+
+            string level = "";
+            switch (tech.Level)
+            {
+                case 1:
+                    level = "icons/tooltip/techs/basica.svg";
+                    break;
+                case 2:
+                    level = "icons/tooltip/techs/complexa.svg";
+                    break;
+                case 3:
+                    level = "icons/tooltip/techs/profissional.svg";
+                    break;
+                case 4:
+                    level = "icons/tooltip/techs/especialista.svg";
+                    break;
+            }
+
+            tooltip.Name = tech.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = tech.Description;
+            tooltip.Info.Add("Nível", level);
+            tooltip.Info.Add("Conhecimento", know);
+            tooltip.Info.Add("1", " ");
+            tooltip.Info.Add("2", " ");
+            tooltip.Lore = tech.Lore;
+
+            return tooltip;
+        }
+
+        // Knowledge
+        private TooltipModel BuildKnowledgeHover(string id, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var knowledge = _locate.LocateKnowledge(game, id);
+
+            tooltip.Name = knowledge.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = knowledge.Description;
+            tooltip.Info.Add("1", " ");
+            tooltip.Info.Add("2", " ");
+            tooltip.Info.Add("3", " ");
+            tooltip.Info.Add("4", " ");
+            tooltip.Lore = knowledge.Lore;
+
+            return tooltip;
+        }
+
+        // Resources
+        private TooltipModel BuildResourcesHover(string id, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var resource = _locate.LocateResource(game, id);
+
+            var rsInfo = _resources.GetResourceInfo(game, id);
+            string gain = NumbersHelper.Padronize(rsInfo.rsRegen);
+
+            string cap = NumbersHelper.Padronize(rsInfo.rsCap);
+
+            tooltip.Name = resource.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = resource.Description;
+            tooltip.Info.Add("Ganho", gain);
+            tooltip.Info.Add("Capacidade", cap);
+            tooltip.Info.Add("1", " ");
+            tooltip.Info.Add("2", " ");
+            tooltip.Lore = resource.Lore;
+
+            return tooltip;
+        }
+
+        // Coins
+        private TooltipModel BuildCoinsHover(string id, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var coin = _locate.LocateCoin(game, id);
+            var stage = _locate.LocateStage(game, game.SelectedStageId);
+            var expansion = _locate.LocateExpansion(game, game.CurrentExpansionId);
+
+            var stageGain = _contract.GetStageContractsPerSecond(game, stage.Id);
+            stageGain.TryGetValue(id, out var gainS);
+            string gainStage = NumbersHelper.Padronize(gainS) + "/s";
+
+            var gameGain = _contract.GetGameContractsPerSecond(game);
+            gameGain.TryGetValue(id, out var gainT);
+            string gainTotal = NumbersHelper.Padronize(gainT) + "/s";
+
+            stage.ExpeditionStats.Coins.TryGetValue(id, out var amountS);
+            var amountStage = NumbersHelper.Padronize(amountS);
+
+            expansion.ExpansionStats.Coins.TryGetValue(id, out var amountT);
+            var amountTotal = NumbersHelper.Padronize(amountT);
+
+            tooltip.Name = coin.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = coin.Description;
+            tooltip.Info.Add("Na Região", amountStage);
+            tooltip.Info.Add("Ganho Região", gainStage);
+            tooltip.Info.Add("No Total", amountTotal);
+            tooltip.Info.Add("Ganho Total", gainTotal);
+            tooltip.Lore = coin.Lore;
+
+            return tooltip;
+        }
+
+        // Stage
+        private TooltipModel BuildStageHover(string id, GameModel game)
+        {
+            var tooltip = new TooltipModel();
+
+            var stage = _locate.LocateStage(game, id);
+
+            tooltip.Name = stage.Name;
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = stage.Description;
+            tooltip.Info.Add("1", " ");
+            tooltip.Info.Add("2", " ");
+            tooltip.Info.Add("3", " ");
+            tooltip.Info.Add("4", " ");
+            tooltip.Lore = stage.Lore;
+
+            return tooltip;
+        }
+
+        // Expedition
+        private TooltipModel BuildExpeditionHover(string id, GameModel game)
+        {
+            var stage = _locate.LocateStage(game, id);
+
+            var tooltip = new TooltipModel();
+
+            int countLine = 0;
+            foreach (var characters in _game.CurrentGame.Characters)
+            {
+                if (characters.Value.CharState == CharState.InLine) countLine++;
+            }
+
+            int partyCap = _expedition.GetPartyCap(stage);
+            
+            string partySize = countLine + " / " + partyCap;
+
+            tooltip.Name = "Expedição";
+            tooltip.CostAmount = "";
+            tooltip.CostIcon = "";
+            tooltip.CostName = "";
+            tooltip.Description = "Encerra ou Inicia uma Expedição.";
+            tooltip.Info.Add("Membros", partySize);
+            tooltip.Info.Add("1", " ");
+            tooltip.Info.Add("2", " ");
+            tooltip.Info.Add("3", " ");
+            tooltip.Lore = "Toda aventura precisa terminar";
+
+            return tooltip;
         }
     }
 }

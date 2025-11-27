@@ -6,17 +6,29 @@ namespace FurmaIdle.Models
     {
         public string Id { get; set; }
         public string Name { get; set; }
-        public double GainBase { get; set; }
-        public double GainCurve { get; set; }
-        public double GainMultiplier { get; set; }
-        public int GainFactor { get; set; } = 0;
-        public double KnowCoinGain { get; set; }
-        public double KnowCoinGainPenaltie { get; set; }
+        public string Description { get; set; }
+        public string Lore { get; set; }
+        public string Icon { get; set; }
         public string Image { get; set; }
-        public bool Avaliable { get; set; } = false;
-        public int Points { get; set; } = 0;
-        public ResetPersistenceEnum.ResetPersistence Persistence { get; set; } = ResetPersistenceEnum.ResetPersistence.ExpansionOnly;
+        public VersionHelper.UseState UseState { get; set; } = VersionHelper.UseState.InUse;
+
+        // Status
+        public string? UnlockId { get; set; }
+        public UnlockHelper.State State { get; set; }
+        public UnlockHelper.Persistence Persistence { get; set; }
 
 
+        // Gain
+        public string GainCoinId { get; set; }
+        public int GainCoinBase { get; set; }
+        public double GainCoinCurve { get; set; }
+
+        // Boost
+        public double GenerationFactor { get; set; }
+        public double GenerationPenaltie { get; set; }
+        public IncomeHelper.CoinBurst GenerationCoin { get; set;}
+
+        // Modifier
+        public List<ModifierModel> Modifiers { get; set; }
     }
 }

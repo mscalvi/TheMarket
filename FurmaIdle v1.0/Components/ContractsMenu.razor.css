@@ -1,0 +1,193 @@
+﻿.contracts-empty {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+
+    .contracts-empty > img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
+    }
+
+.contracts-layout {
+    display: grid;
+    grid-template-rows: 30px 1fr;
+    grid-template-areas:
+        "contract-cap"
+        "contract-levels";
+    gap: 1px;
+    height: 100%;
+}
+
+.contracts-capbar {
+    grid-area: contract-cap;
+    padding: 2px;
+    border: none;
+    font-size: clamp(.86rem, .9vw, .98rem);
+    display: grid;
+    justify-items: center;
+    align-items: center;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+        "selectbuy cap";
+}
+
+    .contracts-capbar .cap {
+        grid-area: cap;
+        text-align: center;
+    }
+
+    .contracts-capbar .selectbuy {
+        grid-area: selectbuy;
+    }
+
+.contract-button.select-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.contracts-grid {
+    grid-area: contract-levels;
+    display: grid;
+    grid-template-rows: repeat(var(--levels), minmax(0,1fr));
+    gap: 1px;
+    height: 100%;
+    min-height: 0;
+    justify-content: center;
+}
+
+.level-noChosen {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    place-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    object-fit: contain;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    max-width: 100%;
+    max-height: 100%;
+    justify-content: center;
+}
+
+    .level-noChosen .no-contract {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        display: block;
+        pointer-events: none;
+    }
+
+.contracts-level {
+    box-sizing: border-box;
+    height: 100%;
+    overflow: hidden;
+    padding: 2px;
+    border: 1px dashed rgb(9, 48, 16, .55);
+    border-radius: 10px;
+    justify-content: center;
+}
+
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 1px;
+    justify-items: center;
+    justify-content: center;
+}
+
+.contract-card {
+    grid-area: contract-info;
+    display: grid;
+    gap: 2px;
+    width: 100%;
+    height: 100%;
+    grid-template-rows: 5fr 1fr;
+    grid-template-areas:
+        "contract-info"
+        "contract-progress";
+}
+
+.contract-card-top {
+    grid-area: contract-info;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+    gap: 2px;
+    min-height: 0;
+    overflow: hidden;
+    justify-items: center;
+    align-self: stretch;
+    align-items: center;
+    justify-content: center;
+}
+
+    .contract-card-top .contract-info {
+        display: grid;
+        grid-auto-rows: min-content;
+        align-content: center;
+        padding: 2px;
+        background: var(--panel-bg, rgba(255,255,255,.04));
+        border: 1px solid var(--panel-border, rgba(255,255,255,.08));
+        border-radius: 10px;
+        max-height: 100%;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        font-size: clamp(.6rem, .84vw, .9rem);
+    }
+
+        .contract-card-top .contract-info .cc-name,
+        .contract-card-top .contract-info .cc-cycle {
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 1px;
+        }
+
+        .contract-card-top .contract-info .cc-name {
+            font-weight: 400;
+        }
+
+.contract-card-bottom {
+    grid-area: contract-progress;
+    display: grid;
+    align-content: center;
+    overflow: hidden;
+    min-height: 0;
+    height: 100%;
+}
+
+.contract-progress-bar {
+    display: grid;
+    grid-template-columns: repeat(100, 1fr);
+    gap: 1px;
+    width: 100%;
+    height: clamp(8px, 1.1vh, 20px);
+    min-height: 8px;
+    background: rgba(255,255,255,.08);
+    overflow: hidden;
+    align-items: end;
+}
+
+    .contract-progress-bar .chunk {
+        height: 70%;
+        background: rgba(191, 113, 61, 0.50);
+        transition: background 120ms linear, height 120ms linear;
+    }
+
+        .contract-progress-bar .chunk.is-filled {
+            height: 90%;
+            background: rgba(67, 219, 219, 0.50);
+        }

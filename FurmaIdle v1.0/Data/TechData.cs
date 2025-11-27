@@ -1,130 +1,191 @@
-﻿using FurmaIdle.Models;
+﻿using FurmaIdle.Models; // Assumindo que TechModel está aqui
+using FurmaIdle.Helpers; // Assumindo que UnlockHelper está aqui
+using System.Collections.Generic;
+using System.Linq;
 
 namespace FurmaIdle.Data
 {
-    public static class TechData
+    public class TechData
     {
         public static int SchemaVersion => 1;
 
-        // ordem de exibição/seed
-        public static readonly List<string> Order = new() { "t10", "t11", "t12", "t13", "t14", "t20", "t30" };
+        public static readonly List<string> ShowOrder = new();
 
-        // catálogo IMUTÁVEL (não use em runtime diretamente)
         internal static readonly Dictionary<string, TechModel> All = new()
         {
-            ["t10"] = new TechModel
+            #region Cultural (k01)
+            ["t011"] = new TechModel
             {
-                Id = "t10",
+                Id = "t011",
                 Name = "Fundação de Guildas",
-                Cost = 1,
-                CostKnowledgeId = "k10",
-                Image = "images/icons/techonology/t10.jpg",
-                Unlocked = false,
-                Avaliable = true,
-                DestinationId = "d00"
+                Icon = "icons/techs/t011.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0110",
+                Level = 1,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["t11"] = new TechModel
+            #endregion
+
+            #region Geográfico (k02)
+            ["t021"] = new TechModel
             {
-                Id = "t11",
+                Id = "t021",
                 Name = "Vilas Litorâneas",
-                Cost = 1,
-                CostKnowledgeId = "k11",
-                Image = "images/icons/techonology/t11.jpg",
-                Unlocked = false,
-                Avaliable = true,
-                DestinationId = "d00"
+                Icon = "icons/techs/t021.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0210",
+                Level = 1,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["t12"] = new TechModel
+            ["t022"] = new TechModel
             {
-                Id = "t12",
-                Name = "Vida em Muradas",
-                Cost = 1,
-                CostKnowledgeId = "k12",
-                Image = "images/icons/techonology/t12.jpg",
-                Unlocked = false,
-                Avaliable = true,
-                DestinationId = "d00"
-            },
-            ["t13"] = new TechModel
-            {
-                Id = "t13",
+                Id = "t022",
                 Name = "Litorais Rochosos",
-                Cost = 10,
-                CostKnowledgeId = "k11",
-                Image = "images/icons/techonology/t13.jpg",
-                Unlocked = false,
-                Avaliable = false,
-                DestinationId = "d01"
+                Icon = "icons/techs/t022.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0220",
+                Level = 2,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["t14"] = new TechModel
+            #endregion
+
+            #region T03x - Sobrevivência (k03)
+            ["t031"] = new TechModel
             {
-                Id = "t14",
+                Id = "t031",
+                Name = "Vida em Muradas",
+                Icon = "icons/techs/t031.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0310",
+                Level = 1,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
+            },
+            ["t032"] = new TechModel
+            {
+                Id = "t032",
                 Name = "Sobrevivência na Selva",
-                Cost = 50,
-                CostKnowledgeId = "k12",
-                Image = "images/icons/techonology/t14.jpg",
-                Unlocked = false,
-                Avaliable = false,
-                DestinationId = "d02"
+                Icon = "icons/techs/t032.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0320",
+                Level = 2,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["t20"] = new TechModel
+            #endregion
+
+            #region T04x - Navegação (k04)
+            ["t041"] = new TechModel
             {
-                Id = "t20",
+                Id = "t041",
                 Name = "Construção de Barcos",
-                Cost = 1,
-                CostKnowledgeId = "k20",
-                Image = "images/icons/techonology/t20.jpg",
-                Unlocked = false,
-                Avaliable = false,
-                DestinationId = "d03"
+                Icon = "icons/techs/t041.svg", 
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0410",
+                Level = 1,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
             },
-            ["t30"] = new TechModel
+            #endregion
+
+            #region T05x - Caça (k05)
+            ["t051"] = new TechModel
             {
-                Id = "t30",
-                Name = "Insaniophora",
-                Cost = 50,
-                CostKnowledgeId = "k30",
-                Image = "images/icons/techonology/t30.jpg",
-                Unlocked = false,
-                Avaliable = false,
-                DestinationId = "d01"
+                Id = "t051",
+                Name = "Presas",
+                Icon = "icons/techs/t051.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0510",
+                Level = 1,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
+            },
+            ["t052"] = new TechModel
+            {
+                Id = "t052",
+                Name = "Predadores",
+                Icon = "icons/techs/t052.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0520",
+                Level = 2,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
+            },
+            ["t053"] = new TechModel
+            {
+                Id = "t053",
+                Name = "Criaturas Insanas",
+                Icon = "icons/techs/t053.svg",
+                Description = "",
+                Lore = "",
+                UnlockId = "uh0530",
+                Level = 3,
+                State = UnlockHelper.State.Blocked,
+                Persistence = UnlockHelper.Persistence.Permanent,
+                Modifiers = new List<ModifierModel>(),
             }
+            #endregion
         };
+
+        // --- Métodos Reutilizáveis do Padrão ---
 
         public static TechModel GetDef(string id)
         {
-            var tech = All[id];
+            if (!All.TryGetValue(id, out var tech))
+            {
+                throw new KeyNotFoundException($"Tech with ID '{id}' not found.");
+            }
+
             return new TechModel
             {
                 Id = tech.Id,
                 Name = tech.Name,
-                Cost = tech.Cost,
-                CostKnowledgeId = tech.CostKnowledgeId,
-                Image = tech.Image,
-                Unlocked = tech.Unlocked,
-                Avaliable = tech.Avaliable,
-                DestinationId = tech.DestinationId
+                Icon = tech.Icon,
+                Description = tech.Description,
+                Lore = tech.Lore,
+                UnlockId = tech.UnlockId,
+                Level = tech.Level,
+                State = tech.State,
+                Persistence = tech.Persistence,
+                Modifiers = tech.Modifiers,
+                UseState = tech.UseState,
             };
         }
 
-        public static Dictionary<string, TechModel> CreateInitialTechs()
+        public static void PopulateOrder()
+        {
+            ShowOrder.Clear();
+            IEnumerable<string> keys = All?.Keys.AsEnumerable() ?? Enumerable.Empty<string>();
+            ShowOrder.AddRange(keys.OrderBy(k => k, StringComparer.Ordinal));
+        }
+
+        public static Dictionary<string, TechModel> CreateInitialStates()
         {
             var dict = new Dictionary<string, TechModel>(All.Count);
-            foreach (var id in Order)
+            if (ShowOrder.Count == 0) PopulateOrder();
+            foreach (var id in ShowOrder)
             {
                 if (!All.TryGetValue(id, out var tech)) continue;
-
-                dict[id] = new TechModel
-                {
-                    Id = tech.Id,
-                    Name = tech.Name,
-                    Cost = tech.Cost,
-                    CostKnowledgeId = tech.CostKnowledgeId,
-                    Image = tech.Image,
-                    Unlocked = tech.Unlocked,
-                    Avaliable = tech.Avaliable,
-                    DestinationId = tech.DestinationId
-                };
+                dict[id] = GetDef(id);
             }
             return dict;
         }

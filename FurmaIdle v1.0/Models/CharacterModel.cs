@@ -4,30 +4,35 @@ namespace FurmaIdle.Models
 {
     public class CharacterModel
     {
+        // Basics
         public string Id { get; set; }
         public string Name { get; set; }
-        public string MainKnowId { get; set; }
-        public string SecondKnowId { get; set; }
-        public string? TraitId { get; set; }
-        public string SpecialtyId { get; set; }
-        public int Sort { get; init; }
+        public string Description { get; set; }
+        public string Lore { get; set; }
+        public string Icon { get; set; }
         public string Image { get; set; }
-        public string BigImage { get; set; }
-        public string FullImage { get; set; }
-        public ResetPersistenceEnum.ResetPersistence Persistence { get; set; } = ResetPersistenceEnum.ResetPersistence.Permanent;
+        public VersionHelper.UseState UseState { get; set; } = VersionHelper.UseState.InUse;
 
-        // Stats
-        public CharStateEnum.CharState CharState { get; set; }
-        public bool Avaliable { get; set; }
-        public string? CharDestId { get; set; }
-        public string CharStageId { get; set; }
-        public bool Unlocked { get; set; }
-        public int Cost { get; set; }
-        public string CostResourceId { get; set; }
+        // Modifier
+        public List<ModifierModel> Modifiers { get; set; }
+
+        // Status
+        public string UnlockId { get; set; }
+        public UnlockHelper.State State { get; set; }
+        public UnlockHelper.CharState CharState { get; set; }
+        public string? InStageId { get; set; }
+        public UnlockHelper.Persistence Persistence { get; set; } = UnlockHelper.Persistence.Permanent;
 
         // Contracts
-        public List<string> KnowContractsIds { get; set; }
-        public List<string> UnknowContractsIds { get; set; }
-        public int MaxContracts { get; set; }
+        public int ContractCap { get; set; }
+        public List<string> ContractsIds { get; set; }
+
+        // Knowledge
+        public string? KnowledgeFactor1 { get; set; }
+        public string? KnowledgeFactor2 { get; set; }
+
+        // Traits e Speciality
+        public string TraitId { get; set; }
+        public string SpecialtyId { get; set; }
     }
 }

@@ -1,0 +1,113 @@
+﻿@inherits UiHelper
+
+@using FurmaIdle.Services
+
+@inject IJSRuntime JS
+@inject IUiLogService UiLog
+
+<div class="game-area">
+<section class="text-box panel" role="status" aria-live="polite">
+    <div class="msg-body" @ref="_msgBodyRef">
+        <div class="msg-list">
+                @if (_msgs.Count == 0)
+                {
+                    <em>Sem mensagens.</em>
+                }
+                else
+                {
+                    @foreach (var m in _msgs)
+                    {
+                        <div class="msg-row @Css(m.Kind)">
+                            <span class="msg-time">@m.Time.ToString("HH:mm:ss: ")</span>
+                            <span class="msg-text">@m.Text</span>
+                        </div>
+                    }
+                }
+        </div>
+    </div>
+</section>
+</div>
+
+@code {
+    ElementReference _msgBodyRef;
+    bool _scrollPending;
+
+    enum MsgKind { Info, Lore, Error, Unlock }
+    sealed class UiMessage
+    {
+        public DateTime Time { get; init; } = DateTime.Now;
+        public string Text { get; init; } = "";
+        public MsgKind Kind { get; init; } = MsgKind.Info;
+    }
+    readonly List<UiMessage> _msgs = new();
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        var buf = Game.CurrentGame?.Ui?.LogBuffer;
+        if (buf is not null && buf.Count > 0)
+        {
+            foreach (var m in buf)
+            {
+                _msgs.Add(new UiMessage
+                {
+                    Text = m.Text,
+                    Time = m.Time,
+                    Kind = m.Kind switch
+                    {
+                        UiLogKind.Lore => MsgKind.Lore,
+                        UiLogKind.Error => MsgKind.Error,
+                        UiLogKind.Unlock => MsgKind.Unlock,
+                        _ => MsgKind.Info
+                    }
+                });
+            }
+
+            _scrollPending = true;
+        }
+
+        UiLog.OnMessage += HandleUiLogMessage;
+    }
+
+
+    public void Dispose()
+    {
+        UiLog.OnMessage -= HandleUiLogMessage;
+        base.Dispose();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollPending)
+        {
+            _scrollPending = false;
+            await JS.InvokeVoidAsync("ui.scrollToBottom", _msgBodyRef);
+        }
+    }
+
+    void HandleUiLogMessage(UiLogMessage msg)
+    {
+        _msgs.Add(new UiMessage
+        {
+            Text = msg.Text,
+            Time = msg.Time,
+            Kind = msg.Kind switch
+            {
+                UiLogKind.Lore => MsgKind.Lore,
+                UiLogKind.Error => MsgKind.Error,
+                UiLogKind.Unlock => MsgKind.Unlock,
+                _ => MsgKind.Info
+            }
+        });
+        InvokeAsync(StateHasChanged);
+    }
+
+    string Css(MsgKind k) => k switch
+    {
+        MsgKind.Lore => "is-lore",
+        MsgKind.Error => "is-error",
+        MsgKind.Unlock => "is-unlock",
+        _ => "is-info"
+    };
+}

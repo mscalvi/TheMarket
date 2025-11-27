@@ -1,17 +1,24 @@
-﻿namespace FurmaIdle.Models
-{
-    public sealed class TraitModel
-    {
-        public string Id { get; set; }           // tr00, tr01...
-        public string Name { get; set; } = "";
-        public string? Image { get; set; }
-        public string? Description { get; set; }
+﻿using FurmaIdle.Helpers;
 
-        // efeitos simples (keep it simple)
-        public string? ResourceId { get; set; }  // para “Gera Mantimentos”
-        public string? KnowledgeId { get; set; } // para “Conhecimento Cultural/Sobrevivência/Geográfico”
-        public double AddPerSecond { get; set; } // +X/s no ResourceId/KnowledgeId
-        public double GainMult { get; set; } = 1.0; // multiplicador de ganho do Resource/Knowledge
-        public double CharacterCostMult { get; set; } = 1.0; // “Reduz Custo de Contratação” (mult global)
+namespace FurmaIdle.Models
+{
+    public class TraitModel
+    {
+        public string Id { get; set; }
+        public string Description { get; set; }
+        public VersionHelper.UseState UseState { get; set; } = VersionHelper.UseState.InUse;
+
+        // Effect
+        public string? TargetId { get; set; }
+        public double EffectValue { get; set; }
+        public EffectHelper.EffectOperation EffectOp { get; set; }
+        public EffectHelper.EffectType EffectType { get; set; }
+        public EffectHelper.EffectSupertype EffectSupertype { get; set; }
+        public UnlockHelper.Persistence Persistence { get; set; } = UnlockHelper.Persistence.untilExpedition;
+
+
+
+        // Modifier
+        public List<ModifierModel> Modifiers { get; set; }
     }
 }

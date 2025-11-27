@@ -1,11 +1,17 @@
 ﻿namespace FurmaIdle.Models
 {
-    public sealed record TooltipModel(
-        string Id,
-        string Name,
-        string Conhecimentos,       // k11, k10 (ou nomes futuramente)
-        string ContratosDisponiveis,// c10, c20…
-        string Traco,               // trait id/nomes
-        string Especialidade        // e01…
-    );
+    public class TooltipModel
+    {
+        public string Name { get; set; }
+
+        public string? CostAmount { get; set; }
+        public string? CostIcon { get; set; }
+        public string? CostName { get; set; }
+
+        public string Description { get; set; }
+
+        public string Lore { get; set; }
+
+        public Dictionary<string, string> Info { get; set; } = new();
+    }
 }

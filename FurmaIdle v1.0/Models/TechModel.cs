@@ -6,12 +6,17 @@ namespace FurmaIdle.Models
     {
         public string Id { get; set; }
         public string Name { get; set; }
-        public int Cost { get; set; }
-        public string CostKnowledgeId { get; set; }
-        public string Image { get; set; }
-        public bool Unlocked { get; set; }
-        public bool Avaliable { get; set; }
-        public string DestinationId { get; set; }
-        public ResetPersistenceEnum.ResetPersistence Persistence { get; set; } = ResetPersistenceEnum.ResetPersistence.ExpansionOnly;
+        public string Icon { get; set; }
+        public string Description { get; set; }
+        public string Lore { get; set; }
+        public string UnlockId { get; set; }
+        public int Level { get; set; }
+        public PricingHelper.PricingId PricingId { get; set; }
+        public UnlockHelper.State State { get; set; }
+        public UnlockHelper.Persistence Persistence { get; set; }
+        public VersionHelper.UseState UseState { get; set; } = VersionHelper.UseState.InUse;
+
+        // Modifier
+        public List<ModifierModel> Modifiers { get; set; }
     }
 }
